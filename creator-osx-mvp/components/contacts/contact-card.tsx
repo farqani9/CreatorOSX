@@ -1,4 +1,3 @@
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ContactStatusBadge } from './contact-status-badge';
 import { Button } from '@/components/ui/Button';
@@ -31,9 +30,16 @@ export function ContactCard({
   onClick,
 }: ContactCardProps) {
   return (
-    <Card
+    <div
       className="bg-white rounded-xl border border-slate-100 p-6 shadow-sm hover:border-slate-200 transition-colors cursor-pointer"
       onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          onClick?.();
+        }
+      }}
     >
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3 flex-1">
@@ -141,7 +147,7 @@ export function ContactCard({
           Added {formatDate(contact.created_at, 'relative')}
         </span>
       </div>
-    </Card>
+    </div>
   );
 }
 

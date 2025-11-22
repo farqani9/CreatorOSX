@@ -17,14 +17,14 @@ export default function DashboardLayout({
   return (
     <AuthProvider>
       <ProtectedRoute>
-        <div className="min-h-screen bg-slate-50">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
           {/* Top Navbar */}
-          <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+          <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-50">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex items-center justify-between h-16">
                 {/* Logo */}
                 <div className="flex items-center gap-2">
-                  <h1 className="text-xl font-bold text-slate-900">
+                  <h1 className="text-xl font-bold text-slate-900 dark:text-white">
                     Creator OSX
                   </h1>
                 </div>
@@ -36,7 +36,7 @@ export default function DashboardLayout({
           </header>
 
           {/* Main Content */}
-          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <main>
             {children}
           </main>
         </div>
