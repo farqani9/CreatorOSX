@@ -11,6 +11,7 @@ This directory contains comprehensive rules for AI assistance on the CreatorOSX 
 5. **api-integration.mdc** - Supabase backend integration guide
 6. **security-considerations.mdc** - Auth, RLS, and data protection
 7. **mvp_plan.md** - Complete MVP specification and user journey
+8. **creator-osx-mvp/DESIGN_SYSTEM.md** - Design system & UI consistency guide
 
 ---
 
@@ -261,7 +262,37 @@ README.md                      # Setup instructions
 
 ---
 
-## 🎨 Design Inspiration
+## 🎨 Design System & Consistency
+
+### 🚨 CRITICAL RULE: Design Consistency
+
+**ALL pages must maintain visual consistency with the landing page.**
+
+Reference: `creator-osx-mvp/DESIGN_SYSTEM.md`
+
+#### Required Standards:
+- **Colors**: Use slate (not gray) for neutrals, brand-500 (#0ea5e9 sky blue) for primary actions
+- **Typography**: Inter for body, Playfair Display for serif headings
+- **Spacing**: Use Tailwind's 4px scale (gap-4, p-6, etc.)
+- **Shadows**: Subtle only (shadow-sm to shadow-xl)
+- **Borders**: Always use border-slate-100 for cards
+- **Status Colors**: Follow defined palette (blue, yellow, orange, green, red, purple, gray)
+
+#### Quick Reference:
+```jsx
+// Primary Button
+<button className="px-6 py-3 bg-brand-500 hover:bg-brand-600 text-white rounded-lg">
+
+// Card
+<div className="bg-white rounded-xl border border-slate-100 p-6 shadow-sm">
+
+// Text
+<h1 className="text-slate-900">  // Primary text
+<p className="text-slate-700">   // Body text
+<span className="text-slate-500"> // Secondary text
+```
+
+### Design Inspiration
 
 - **Notion** - Minimal, clean interface
 - **Linear** - Fast, keyboard-first UX
@@ -271,4 +302,4 @@ README.md                      # Setup instructions
 ---
 
 _Last Updated: November 2024_
-_Version: 2.0 (MVP Ready)_
+_Version: 2.1 (MVP Ready + Design System)_

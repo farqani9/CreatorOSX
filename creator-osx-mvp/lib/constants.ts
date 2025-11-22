@@ -13,6 +13,36 @@ export const APP_DESCRIPTION = 'Your all-in-one Creator CRM & Ops System';
 export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 // ============================================================================
+// Design Tokens (Matches Landing Page)
+// ============================================================================
+
+/**
+ * Official color palette - MUST be used consistently across all pages
+ * Based on the landing page design system
+ */
+export const COLORS = {
+  // Brand colors (Sky Blue)
+  brand: {
+    50: '#f0f9ff',
+    100: '#e0f2fe',
+    500: '#0ea5e9',  // Primary brand color
+    600: '#0284c7',  // Hover state
+    900: '#0c4a6e',  // Dark brand
+  },
+  
+  // Status colors for badges
+  status: {
+    blue: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-100' },
+    yellow: { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-100' },
+    orange: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-100' },
+    green: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-100' },
+    red: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-100' },
+    purple: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-100' },
+    gray: { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-100' },
+  },
+} as const;
+
+// ============================================================================
 // Contact Statuses
 // ============================================================================
 
