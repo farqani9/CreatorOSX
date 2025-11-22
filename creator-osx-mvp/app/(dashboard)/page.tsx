@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
-import { useAuth } from '@/lib/hooks/use-auth';
+import { useAuthContext } from '@/components/auth/auth-provider';
 import { Users, Briefcase, CheckSquare, Calendar, FileText, LayoutDashboard } from 'lucide-react';
+import Link from 'next/link';
 
 /**
  * Dashboard Page
@@ -11,7 +12,7 @@ import { Users, Briefcase, CheckSquare, Calendar, FileText, LayoutDashboard } fr
  * This is the landing page after successful authentication.
  */
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user } = useAuthContext();
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'there';
 
@@ -19,10 +20,10 @@ export default function DashboardPage() {
     <div>
       {/* Welcome Section */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
+        <h1 className="text-3xl font-bold text-slate-900 mb-2">
           Welcome back, {userName}! 👋
         </h1>
-        <p className="text-slate-600 dark:text-slate-400">
+        <p className="text-slate-600">
           Here's what's happening with your creator business today.
         </p>
       </div>
@@ -74,6 +75,7 @@ export default function DashboardPage() {
           description="Track brand collaborations in a Kanban board"
           href="/dashboard/deals"
           color="purple"
+          comingSoon
         />
         <FeatureCard
           icon={<CheckSquare className="w-8 h-8" />}
@@ -81,6 +83,7 @@ export default function DashboardPage() {
           description="Manage your to-dos and follow-ups"
           href="/dashboard/tasks"
           color="orange"
+          comingSoon
         />
         <FeatureCard
           icon={<Calendar className="w-8 h-8" />}
@@ -88,6 +91,7 @@ export default function DashboardPage() {
           description="Plan and schedule your content"
           href="/dashboard/calendar"
           color="green"
+          comingSoon
         />
         <FeatureCard
           icon={<FileText className="w-8 h-8" />}
@@ -95,6 +99,7 @@ export default function DashboardPage() {
           description="Take notes and create templates"
           href="/dashboard/notes"
           color="pink"
+          comingSoon
         />
         <FeatureCard
           icon={<LayoutDashboard className="w-8 h-8" />}
@@ -102,18 +107,19 @@ export default function DashboardPage() {
           description="Customize your workspace"
           href="/dashboard/settings"
           color="slate"
+          comingSoon
         />
       </div>
 
       {/* Getting Started */}
-      <div className="mt-8 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
-        <h2 className="text-xl font-semibold text-blue-900 dark:text-blue-100 mb-2">
+      <div className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-6">
+        <h2 className="text-xl font-semibold text-blue-900 mb-2">
           🚀 Getting Started
         </h2>
-        <p className="text-blue-800 dark:text-blue-200 mb-4">
+        <p className="text-blue-800 mb-4">
           Welcome to Creator OSX! Your CRM and operations system is ready. Start by:
         </p>
-        <ul className="space-y-2 text-blue-700 dark:text-blue-300">
+        <ul className="space-y-2 text-blue-700">
           <li className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
             Adding your first contact or lead
@@ -143,24 +149,24 @@ interface StatCardProps {
 
 function StatCard({ icon, title, value, description, color }: StatCardProps) {
   const colorClasses = {
-    blue: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400',
-    purple: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400',
-    orange: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400',
-    green: 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400',
+    blue: 'bg-blue-50 text-blue-600',
+    purple: 'bg-purple-50 text-purple-600',
+    orange: 'bg-orange-50 text-orange-600',
+    green: 'bg-green-50 text-green-600',
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6">
+    <div className="bg-white rounded-xl border border-slate-100 p-6 shadow-sm">
       <div className={`inline-flex p-3 rounded-lg ${colorClasses[color]} mb-4`}>
         {icon}
       </div>
-      <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
+      <h3 className="text-2xl font-bold text-slate-900 mb-1">
         {value}
       </h3>
-      <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+      <p className="text-sm font-medium text-slate-700">
         {title}
       </p>
-      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+      <p className="text-xs text-slate-500 mt-1">
         {description}
       </p>
     </div>
@@ -174,33 +180,41 @@ interface FeatureCardProps {
   description: string;
   href: string;
   color: 'blue' | 'purple' | 'orange' | 'green' | 'pink' | 'slate';
+  comingSoon?: boolean;
 }
 
-function FeatureCard({ icon, title, description, href, color }: FeatureCardProps) {
+function FeatureCard({ icon, title, description, href, color, comingSoon }: FeatureCardProps) {
   const colorClasses = {
-    blue: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400',
-    purple: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400',
-    orange: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400',
-    green: 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400',
-    pink: 'bg-pink-50 dark:bg-pink-900/20 text-pink-600 dark:text-pink-400',
-    slate: 'bg-slate-50 dark:bg-slate-700/20 text-slate-600 dark:text-slate-400',
+    blue: 'bg-blue-50 text-blue-600',
+    purple: 'bg-purple-50 text-purple-600',
+    orange: 'bg-orange-50 text-orange-600',
+    green: 'bg-green-50 text-green-600',
+    pink: 'bg-pink-50 text-pink-600',
+    slate: 'bg-slate-50 text-slate-600',
   };
 
+  const CardWrapper = comingSoon ? 'div' : Link;
+  const cardProps = comingSoon 
+    ? { className: "relative group bg-white rounded-xl border border-slate-100 p-6 shadow-sm opacity-60 cursor-not-allowed" }
+    : { href, className: "relative group bg-white rounded-xl border border-slate-100 p-6 shadow-sm hover:border-brand-200 hover:shadow-md transition-all" };
+
   return (
-    <a
-      href={href}
-      className="group bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-lg transition-all"
-    >
+    <CardWrapper {...cardProps as any}>
+      {comingSoon && (
+        <div className="absolute top-4 right-4 bg-slate-100 text-slate-600 text-xs font-medium px-2 py-1 rounded-full">
+          Coming Soon
+        </div>
+      )}
       <div className={`inline-flex p-3 rounded-lg ${colorClasses[color]} mb-4`}>
         {icon}
       </div>
-      <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+      <h3 className="text-lg font-semibold text-slate-900 mb-2 group-hover:text-brand-600 transition-colors">
         {title}
       </h3>
-      <p className="text-sm text-slate-600 dark:text-slate-400">
+      <p className="text-sm text-slate-600">
         {description}
       </p>
-    </a>
+    </CardWrapper>
   );
 }
 
