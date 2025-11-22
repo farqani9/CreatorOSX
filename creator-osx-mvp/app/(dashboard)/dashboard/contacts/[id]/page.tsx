@@ -42,7 +42,7 @@ export default function ContactDetailPage({ params }: { params: { id: string } }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-brand-500" />
       </div>
     );
@@ -50,7 +50,7 @@ export default function ContactDetailPage({ params }: { params: { id: string } }
 
   if (error || !contact) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-slate-900 mb-2">Contact Not Found</h2>
           <p className="text-slate-600 mb-6">
@@ -66,8 +66,8 @@ export default function ContactDetailPage({ params }: { params: { id: string } }
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div>
+      <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="mb-6">
           <Button
