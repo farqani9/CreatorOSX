@@ -1,0 +1,609 @@
+---
+title: CreatorOSX MVP Codebase Structure
+description: Full-stack Next.js App Router architecture for MVP
+tags: [structure, next-js, app-router, full-stack, mvp]
+---
+
+# MVP Codebase Structure (Next.js)
+
+## Overview
+
+This document describes the **target architecture** for the CreatorOSX MVP using Next.js 14 App Router with Supabase backend.
+
+---
+
+## Core Directory Roles
+
+### `/app` - Next.js App Router
+
+**Purpose:** File-based routing, layouts, and pages
+
+**Route Groups:**
+
+- `(auth)/` - Authentication pages (login, signup)
+- `(dashboard)/` - Protected application routes
+- `(marketing)/` - Public marketing pages
+- `api/` - Backend API endpoints
+
+**Key Files:**
+
+- `layout.tsx` - Root layout with providers
+- `page.tsx` - Route page component
+- `loading.tsx` - Loading UI (Suspense fallback)
+- `error.tsx` - Error boundary
+- `not-found.tsx` - 404 handling
+
+---
+
+### `/components` - React Components
+
+**Organization Pattern:** Feature-based grouping
+
+```
+components/
+├── ui/              # ShadCN primitives (button, input, dialog, etc.)
+├── contacts/        # Contact management components
+├── deals/           # Deal pipeline components
+├── tasks/           # Task management components
+├── calendar/        # Content calendar components
+├── notes/           # Notes editor components
+├── dashboard/       # Dashboard widgets
+├── layout/          # Layout components (sidebar, navbar)
+├── providers/       # Context providers
+└── marketing/       # Landing page components
+```
+
+**Naming Convention:**
+
+- Lowercase with hyphens: `contact-card.tsx`
+- One component per file
+- Co-locate if tightly coupled (< 50 lines)
+
+---
+
+###`/lib` - Utilities & Configuration
+
+**Purpose:** Shared utilities, clients, and configurations
+
+```
+lib/
+├── supabase/
+│   ├── client.ts        # Browser Supabase client
+│   ├── server.ts        # Server Supabase client (cookies)
+│   └── middleware.ts    # Auth middleware helper
+├── hooks/               # Custom React hooks
+│   ├── use-contacts.ts  # Contact CRUD with React Query
+│   ├── use-deals.ts     # Deal operations
+│   ├── use-tasks.ts     # Task operations
+│   └── use-auth.ts      # Auth state and actions
+├── utils.ts             # Generic utilities (cn, formatDate, etc.)
+├── validations.ts       # Zod schemas for forms
+└── constants.ts         # App-wide constants
+```
+
+**Patterns:**
+
+- All Supabase calls go through `/lib/supabase/*`
+- Hooks encapsulate data fetching with React Query
+- Validations centralized in `validations.ts`
+
+---
+
+### `/prisma` - Database
+
+**Purpose:** Database schema and migrations
+
+```
+prisma/
+├── schema.prisma        # Database schema definition
+├── seed.ts              # Seed data for development
+└── migrations/          # Migration history (auto-generated)
+```
+
+**Schema Structure:**
+
+```prisma
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  contacts  Contact[]
+  deals     Deal[]
+  tasks     Task[]
+  notes     Note[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Contact {
+  id          String   @id @default(uuid())
+  name        String
+  brand       String?
+  status      ContactStatus
+  tags        String[]
+  notes       String?
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  deals       Deal[]
+  activities  Activity[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Deal {
+  id            String    @id @default(uuid())
+  title         String
+  brand         String
+  amount        Decimal?
+  status        DealStatus
+  deliverables  String?
+  dueDate       DateTime?
+  contactId     String
+  contact       Contact   @relation(fields: [contactId], references: [id])
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  tasks         Task[]
+  content       ContentItem[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Task {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  dueDate     DateTime?
+  completed   Boolean   @default(false)
+  contactId   String?
+  dealId      String?
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model ContentItem {
+  id          String        @id @default(uuid())
+  title       String
+  description String?
+  status      ContentStatus
+  postDate    DateTime?
+  dealId      String?
+  deal        Deal?         @relation(fields: [dealId], references: [id])
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model Note {
+  id        String   @id @default(uuid())
+  title     String
+  content   String   @db.Text
+  tags      String[]
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum ContactStatus {
+  NEW
+  CONTACTED
+  IN_DISCUSSION
+  CLOSED
+}
+
+enum DealStatus {
+  NEGOTIATING
+  PENDING
+  ACTIVE
+  COMPLETED
+  LOST
+}
+
+enum ContentStatus {
+  IDEA
+  DRAFTING
+  SCHEDULED
+  POSTED
+}
+```
+
+---
+
+### `/store` - Zustand State
+
+**Purpose:** Client-side UI state management
+
+```
+store/
+├── use-modal-store.ts    # Modal open/close state
+├── use-filter-store.ts   # Filter and search state
+└── use-ui-store.ts       # Theme, sidebar, etc.
+```
+
+**Example:**
+
+```typescript
+// store/use-modal-store.ts
+import { create } from "zustand";
+
+type ModalType = "contact" | "deal" | "task" | "note";
+
+interface ModalStore {
+  type: ModalType | null;
+  data: any;
+  isOpen: boolean;
+  onOpen: (type: ModalType, data?: any) => void;
+  onClose: () => void;
+}
+
+export const useModal = create<ModalStore>((set) => ({
+  type: null,
+  data: {},
+  isOpen: false,
+  onOpen: (type, data = {}) => set({ isOpen: true, type, data }),
+  onClose: () => set({ isOpen: false, type: null }),
+}));
+```
+
+---
+
+### `/types` - TypeScript Types
+
+**Purpose:** Shared type definitions
+
+```
+types/
+├── database.ts          # Generated from Prisma
+├── supabase.ts          # Supabase client types
+└── index.ts             # Global app types
+```
+
+**Example:**
+
+```typescript
+// types/index.ts
+export type Contact = {
+  id: string;
+  name: string;
+  brand?: string;
+  status: "NEW" | "CONTACTED" | "IN_DISCUSSION" | "CLOSED";
+  tags: string[];
+  notes?: string;
+  userId: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type Deal = {
+  id: string;
+  title: string;
+  brand: string;
+  amount?: number;
+  status: "NEGOTIATING" | "PENDING" | "ACTIVE" | "COMPLETED" | "LOST";
+  deliverables?: string;
+  dueDate?: Date;
+  contactId: string;
+  userId: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+```
+
+---
+
+## Route Structure
+
+### App Router Groups
+
+**Route Groups** organize routes without affecting URLs:
+
+```
+app/
+├── (auth)/           # Auth routes - no sidebar
+│   ├── login
+│   ├── signup
+│   └── layout.tsx
+├── (dashboard)/      # Protected - with sidebar
+│   ├── contacts
+│   ├── deals
+│   ├── tasks
+│   ├── calendar
+│   ├── notes
+│   ├── settings
+│   ├── layout.tsx
+│   └── page.tsx      # /dashboard → Dashboard home
+└── (marketing)/      # Public - marketing header
+    ├── about
+    ├── pricing
+    └── layout.tsx
+```
+
+---
+
+### API Routes
+
+**Pattern:** RESTful API with Next.js Route Handlers
+
+```
+app/api/
+├── contacts/
+│   ├── route.ts              # GET /api/contacts, POST /api/contacts
+│   └── [id]/
+│       └── route.ts          # GET/PATCH/DELETE /api/contacts/:id
+├── deals/
+│   ├── route.ts              # GET /api/deals, POST /api/deals
+│   └── [id]/
+│       └── route.ts          # GET/PATCH/DELETE /api/deals/:id
+├── tasks/
+│   ├── route.ts
+│   └── [id]/
+│       └── route.ts
+├── notes/
+│   ├── route.ts
+│   └── [id]/
+│       └── route.ts
+└── webhooks/
+    └── stripe/
+        └── route.ts          # POST /api/webhooks/stripe
+```
+
+**Example Route Handler:**
+
+```typescript
+// app/api/contacts/route.ts
+import { NextResponse } from "next/server";
+import { createServerClient } from "@/lib/supabase/server";
+import { contactSchema } from "@/lib/validations";
+
+export async function GET(request: Request) {
+  const supabase = createServerClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { data: contacts, error } = await supabase
+    .from("contacts")
+    .select("*")
+    .eq("userId", user.id)
+    .order("createdAt", { ascending: false });
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(contacts);
+}
+
+export async function POST(request: Request) {
+  const supabase = createServerClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await request.json();
+  const validated = contactSchema.parse(body);
+
+  const { data: contact, error } = await supabase
+    .from("contacts")
+    .insert({ ...validated, userId: user.id })
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(contact, { status: 201 });
+}
+```
+
+---
+
+## Component Patterns
+
+### Feature Components
+
+**Pattern:** Group by feature, not by type
+
+```
+components/contacts/
+├── contact-card.tsx          # Display contact info
+├── contact-form.tsx          # Create/edit form
+├── contact-list.tsx          # List with filters
+├── contact-status-badge.tsx  # Status indicator
+└── contact-activity.tsx      # Activity timeline
+```
+
+### Example Component Structure:
+
+```typescript
+// components/contacts/contact-card.tsx
+"use client";
+
+import { Contact } from "@/types";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ContactStatusBadge } from "./contact-status-badge";
+import { useModal } from "@/store/use-modal-store";
+
+interface ContactCardProps {
+  contact: Contact;
+}
+
+export function ContactCard({ contact }: ContactCardProps) {
+  const modal = useModal();
+
+  return (
+    <Card className="p-4">
+      <div className="flex items-start justify-between">
+        <div>
+          <h3 className="font-semibold">{contact.name}</h3>
+          {contact.brand && (
+            <p className="text-sm text-muted-foreground">{contact.brand}</p>
+          )}
+        </div>
+        <ContactStatusBadge status={contact.status} />
+      </div>
+
+      {contact.notes && (
+        <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
+          {contact.notes}
+        </p>
+      )}
+
+      <div className="mt-4 flex gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => modal.onOpen("contact", contact)}
+        >
+          Edit
+        </Button>
+        <Button
+          size="sm"
+          onClick={() => modal.onOpen("deal", { contactId: contact.id })}
+        >
+          Create Deal
+        </Button>
+      </div>
+    </Card>
+  );
+}
+```
+
+---
+
+## Migration Strategy
+
+### From Vite to Next.js
+
+**Step 1: Preserve Landing Page Components**
+
+```bash
+# Move marketing components to new structure
+mkdir -p components/marketing
+mv components/Hero.tsx components/marketing/hero.tsx
+mv components/Features.tsx components/marketing/features.tsx
+# ... etc
+```
+
+**Step 2: Create Next.js Landing Page**
+
+```typescript
+// app/(marketing)/page.tsx
+import { Hero } from "@/components/marketing/hero";
+import { Features } from "@/components/marketing/features";
+import { Pricing } from "@/components/marketing/pricing";
+
+export default function LandingPage() {
+  return (
+    <>
+      <Hero />
+      <Features />
+      <Pricing />
+    </>
+  );
+}
+```
+
+**Step 3: Build MVP Features**
+
+- Start with authentication
+- Add dashboard layout
+- Build features one by one (contacts → deals → tasks → calendar → notes)
+
+---
+
+## File Naming Conventions
+
+### Next.js Files (lowercase-with-hyphens)
+
+```
+✅ Correct:
+- contact-card.tsx
+- deal-pipeline.tsx
+- task-list.tsx
+- use-contacts.ts
+
+❌ Incorrect:
+- ContactCard.tsx
+- DealPipeline.tsx
+- TaskList.tsx
+```
+
+### Special Next.js Files (exact names)
+
+```
+Required:
+- page.tsx
+- layout.tsx
+- loading.tsx
+- error.tsx
+- not-found.tsx
+- route.ts (API routes)
+```
+
+---
+
+## Anti-patterns to Avoid
+
+### ❌ Don't Mix Server and Client Components Incorrectly
+
+```typescript
+// ❌ Bad - using useState in Server Component
+export default function Page() {
+  const [count, setCount] = useState(0); // Error!
+  return <div>{count}</div>;
+}
+
+// ✅ Good - mark as Client Component
+("use client");
+
+export default function Page() {
+  const [count, setCount] = useState(0);
+  return <div>{count}</div>;
+}
+```
+
+### ❌ Don't Put Business Logic in Components
+
+```typescript
+// ❌ Bad - Supabase call in component
+"use client";
+
+export function ContactList() {
+  useEffect(() => {
+    supabase.from("contacts").select("*").then(setContacts);
+  }, []);
+}
+
+// ✅ Good - use custom hook
+export function ContactList() {
+  const { contacts } = useContacts();
+}
+```
+
+### ❌ Don't Duplicate Supabase Clients
+
+```typescript
+// ❌ Bad - creating client everywhere
+const supabase = createClient(url, key);
+
+// ✅ Good - use lib/supabase/*
+import { createBrowserClient } from "@/lib/supabase/client";
+```
+
+---
+
+_This structure scales from MVP to production with minimal refactoring._

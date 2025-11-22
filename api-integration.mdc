@@ -1,0 +1,761 @@
+---
+title: CreatorOSX API Integration
+description: Supabase backend integration, database patterns, and API design
+tags: [api, supabase, database, backend, integration]
+---
+
+# API Integration
+
+## Overview
+
+CreatorOSX MVP uses **Supabase** as the backend platform, providing:
+
+- **Postgres Database** - Relational data storage
+- **Authentication** - Google OAuth and email/password
+- **Row Level Security (RLS)** - Database-level authorization
+- **Realtime** - Live updates via WebSockets
+- **Storage** - File uploads (future: attachments)
+
+---
+
+## Supabase Setup
+
+### Project Configuration
+
+**1. Create Supabase Project:**
+
+- Visit https://supabase.com/dashboard
+- Create new project
+- Note project URL and API keys
+
+**2. Environment Variables:**
+
+```.env.local
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+
+# App Configuration
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NODE_ENV=development
+```
+
+**Security Notes:**
+
+- `NEXT_PUBLIC_*` - Exposed to browser
+- `SUPABASE_SERVICE_ROLE_KEY` - Server-only, bypasses RLS
+- Never commit `.env.local` to git
+
+---
+
+## Client Configuration
+
+### Browser Client
+
+**File:** `lib/supabase/client.ts`
+
+```typescript
+import { createBrowserClient } from "@supabase/ssr";
+
+export function createClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}
+```
+
+**Usage:**
+
+```typescript
+"use client";
+
+import { createClient } from "@/lib/supabase/client";
+
+export function MyComponent() {
+  const supabase = createClient();
+
+  // Use for client-side operations
+  const { data } = await supabase.from("contacts").select("*");
+}
+```
+
+---
+
+### Server Client
+
+**File:** `lib/supabase/server.ts`
+
+```typescript
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+
+export function createClient() {
+  const cookieStore = cookies();
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          try {
+            cookieStore.set(name, value, options);
+          } catch (error) {
+            // Handle cookie setting errors
+          }
+        },
+        remove(name: string, options: CookieOptions) {
+          try {
+            cookieStore.set(name, "", { ...options, maxAge: 0 });
+          } catch (error) {
+            // Handle cookie removal errors
+          }
+        },
+      },
+    }
+  );
+}
+```
+
+**Usage:**
+
+```typescript
+// Server Component or API Route
+import { createClient } from "@/lib/supabase/server";
+
+export default async function Page() {
+  const supabase = createClient();
+  const { data } = await supabase.from("contacts").select("*");
+  return <div>{/* render */}</div>;
+}
+```
+
+---
+
+### Middleware Client
+
+**File:** `lib/supabase/middleware.ts`
+
+```typescript
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+
+export function createClient(request: NextRequest) {
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          request.cookies.set(name, value);
+          response.cookies.set(name, value, options);
+        },
+        remove(name: string, options: CookieOptions) {
+          request.cookies.set(name, "");
+          response.cookies.set(name, "", options);
+        },
+      },
+    }
+  );
+
+  return { supabase, response };
+}
+```
+
+**Usage:**
+
+```typescript
+// middleware.ts
+import { createClient } from "@/lib/supabase/middleware";
+
+export async function middleware(request: NextRequest) {
+  const { supabase, response } = createClient(request);
+  await supabase.auth.getSession();
+  return response;
+}
+```
+
+---
+
+## Database Schema
+
+### Tables
+
+**Users** (managed by Supabase Auth)
+
+```sql
+-- Supabase automatically creates this
+CREATE TABLE auth.users (
+  id UUID PRIMARY KEY,
+  email TEXT UNIQUE,
+  -- ... auth fields
+);
+```
+
+**Contacts**
+
+```sql
+CREATE TABLE contacts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  brand TEXT,
+  status TEXT NOT NULL CHECK (status IN ('NEW', 'CONTACTED', 'IN_DISCUSSION', 'CLOSED')),
+  tags TEXT[] DEFAULT '{}',
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX contacts_user_id_idx ON contacts(user_id);
+CREATE INDEX contacts_status_idx ON contacts(status);
+
+-- RLS Policies
+ALTER TABLE contacts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own contacts"
+  ON contacts FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create own contacts"
+  ON contacts FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own contacts"
+  ON contacts FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own contacts"
+  ON contacts FOR DELETE
+  USING (auth.uid() = user_id);
+```
+
+**Deals**
+
+```sql
+CREATE TABLE deals (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL,
+  title TEXT NOT NULL,
+  brand TEXT NOT NULL,
+  amount DECIMAL(10, 2),
+  status TEXT NOT NULL CHECK (status IN ('NEGOTIATING', 'PENDING', 'ACTIVE', 'COMPLETED', 'LOST')),
+  deliverables TEXT,
+  due_date TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX deals_user_id_idx ON deals(user_id);
+CREATE INDEX deals_contact_id_idx ON deals(contact_id);
+CREATE INDEX deals_status_idx ON deals(status);
+
+ALTER TABLE deals ENABLE ROW LEVEL SECURITY;
+
+-- Similar RLS policies as contacts
+```
+
+**Tasks**
+
+```sql
+CREATE TABLE tasks (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL,
+  deal_id UUID REFERENCES deals(id) ON DELETE SET NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  due_date TIMESTAMPTZ,
+  completed BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX tasks_user_id_idx ON tasks(user_id);
+CREATE INDEX tasks_due_date_idx ON tasks(due_date);
+CREATE INDEX tasks_completed_idx ON tasks(completed);
+
+ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
+```
+
+**Content Items**
+
+```sql
+CREATE TABLE content_items (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  deal_id UUID REFERENCES deals(id) ON DELETE SET NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  status TEXT NOT NULL CHECK (status IN ('IDEA', 'DRAFTING', 'SCHEDULED', 'POSTED')),
+  post_date TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX content_items_user_id_idx ON content_items(user_id);
+CREATE INDEX content_items_deal_id_idx ON content_items(deal_id);
+CREATE INDEX content_items_post_date_idx ON content_items(post_date);
+
+ALTER TABLE content_items ENABLE ROW LEVEL SECURITY;
+```
+
+**Notes**
+
+```sql
+CREATE TABLE notes (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  tags TEXT[] DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX notes_user_id_idx ON notes(user_id);
+CREATE INDEX notes_tags_idx ON notes USING GIN(tags);
+
+ALTER TABLE notes ENABLE ROW LEVEL SECURITY;
+```
+
+---
+
+## API Routes
+
+### RESTful Patterns
+
+**Contacts API:**
+
+```typescript
+// app/api/contacts/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { contactSchema } from "@/lib/validations";
+
+// GET /api/contacts?status=NEW&search=term
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const searchParams = request.nextUrl.searchParams;
+    const status = searchParams.get("status");
+    const search = searchParams.get("search");
+
+    let query = supabase.from("contacts").select("*").eq("user_id", user.id);
+
+    if (status) {
+      query = query.eq("status", status);
+    }
+
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,brand.ilike.%${search}%`);
+    }
+
+    const { data, error } = await query.order("created_at", {
+      ascending: false,
+    });
+
+    if (error) throw error;
+
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error("GET /api/contacts error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+// POST /api/contacts
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const validated = contactSchema.parse(body);
+
+    const { data, error } = await supabase
+      .from("contacts")
+      .insert({
+        ...validated,
+        user_id: user.id,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return NextResponse.json(data, { status: 201 });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: "Validation failed", details: error.errors },
+        { status: 400 }
+      );
+    }
+
+    console.error("POST /api/contacts error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+```
+
+```typescript
+// app/api/contacts/[id]/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+
+// GET /api/contacts/:id
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { data, error } = await supabase
+      .from("contacts")
+      .select("*")
+      .eq("id", params.id)
+      .eq("user_id", user.id)
+      .single();
+
+    if (error) {
+      if (error.code === "PGRST116") {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+      throw error;
+    }
+
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error("GET /api/contacts/:id error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH /api/contacts/:id
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const validated = contactSchema.partial().parse(body);
+
+    const { data, error } = await supabase
+      .from("contacts")
+      .update({
+        ...validated,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", params.id)
+      .eq("user_id", user.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error("PATCH /api/contacts/:id error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/contacts/:id
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { error } = await supabase
+      .from("contacts")
+      .delete()
+      .eq("id", params.id)
+      .eq("user_id", user.id);
+
+    if (error) throw error;
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("DELETE /api/contacts/:id error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+```
+
+---
+
+## Custom Hooks (React Query)
+
+### Contacts Hook
+
+```typescript
+// lib/hooks/use-contacts.ts
+"use client";
+
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { Contact, ContactInput } from "@/types";
+
+export function useContacts(filters?: { status?: string; search?: string }) {
+  return useQuery({
+    queryKey: ["contacts", filters],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (filters?.status) params.set("status", filters.status);
+      if (filters?.search) params.set("search", filters.search);
+
+      const res = await fetch(`/api/contacts?${params}`);
+      if (!res.ok) throw new Error("Failed to fetch contacts");
+      return res.json() as Promise<Contact[]>;
+    },
+  });
+}
+
+export function useContact(id: string) {
+  return useQuery({
+    queryKey: ["contacts", id],
+    queryFn: async () => {
+      const res = await fetch(`/api/contacts/${id}`);
+      if (!res.ok) throw new Error("Failed to fetch contact");
+      return res.json() as Promise<Contact>;
+    },
+    enabled: !!id,
+  });
+}
+
+export function useCreateContact() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (contact: ContactInput) => {
+      const res = await fetch("/api/contacts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(contact),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to create contact");
+      }
+
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
+    },
+  });
+}
+
+export function useUpdateContact() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Partial<ContactInput>;
+    }) => {
+      const res = await fetch(`/api/contacts/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!res.ok) throw new Error("Failed to update contact");
+      return res.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
+      queryClient.invalidateQueries({ queryKey: ["contacts", variables.id] });
+    },
+  });
+}
+
+export function useDeleteContact() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/contacts/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) throw new Error("Failed to delete contact");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
+    },
+  });
+}
+```
+
+---
+
+## Authentication Integration
+
+### Google OAuth Setup
+
+**1. Configure in Supabase Dashboard:**
+
+- Navigate to Authentication → Providers
+- Enable Google provider
+- Add OAuth credentials from Google Cloud Console
+- Set redirect URL: `https://your-project.supabase.co/auth/v1/callback`
+
+**2. Auth Callback Route:**
+
+```typescript
+// app/auth/callback/route.ts
+import { createClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
+
+export async function GET(request: Request) {
+  const requestUrl = new URL(request.url);
+  const code = requestUrl.searchParams.get("code");
+
+  if (code) {
+    const supabase = createClient();
+    await supabase.auth.exchangeCodeForSession(code);
+  }
+
+  return NextResponse.redirect(new URL("/dashboard", request.url));
+}
+```
+
+**3. Auth Hook:**
+
+```typescript
+// lib/hooks/use-auth.ts
+"use client";
+
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+
+export function useAuth() {
+  const router = useRouter();
+  const supabase = createClient();
+
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (error) throw error;
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    router.push("/");
+    router.refresh();
+  };
+
+  return { signInWithGoogle, signOut };
+}
+```
+
+---
+
+## Best Practices
+
+### Security
+
+1. **Always use RLS policies** - Never bypass with service role key in client code
+2. **Validate user_id** - Always check `auth.uid() = user_id` in RLS policies
+3. **Use prepared statements** - Supabase client handles SQL injection
+4. **Validate input** - Use Zod schemas for all mutations
+
+### Performance
+
+1. **Use indexes** - Add indexes on foreign keys and frequently queried columns
+2. **Select specific columns** - Don't use `select('*')` unless needed
+3. **Limit results** - Use `.limit()` and pagination
+4. **Cache queries** - React Query handles caching automatically
+
+### Error Handling
+
+1. **Check error codes** - Supabase returns specific error codes
+2. **Log errors** - Always log errors for debugging
+3. **User-friendly messages** - Don't expose internal errors to users
+4. **Handle edge cases** - Check for null, undefined, and empty results
+
+---
+
+_Complete Supabase integration guide. Update as new patterns emerge._

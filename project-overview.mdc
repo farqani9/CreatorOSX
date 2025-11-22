@@ -1,0 +1,676 @@
+---
+title: CreatorOSX Project Overview
+description: Comprehensive overview of the CreatorOSX CRM application
+tags: [overview, setup, tech-stack, configuration, mvp]
+---
+
+# Project Overview
+
+## Purpose
+
+**CreatorOSX** is a **Notion-style CRM platform** designed for personal brands, content creators, and coaches to manage their entire business workflow in one clean workspace.
+
+### Core Value Proposition
+
+A minimal, Notion-style CRM that helps personal brands manage leads, brand deals, and content workflows in one clean workspace.
+
+### Target Users
+
+- Content creators (Instagram, TikTok, LinkedIn, YouTube)
+- Creator-operators managing brand partnerships
+- Coaches and consultants
+- Solo entrepreneurs building personal brands
+
+### Key Problems Solved
+
+- Converting DMs and inquiries into trackable leads
+- Managing brand deal pipelines and negotiations
+- Planning and scheduling sponsored content
+- Tracking revenue from collaborations
+- Organizing notes, templates, and workflows
+
+## Project Type & Status
+
+### Current State (Landing Page)
+
+**Static Marketing Site** - Showcasing the product vision with:
+
+- Marketing landing page built with React + Vite + Tailwind
+- Component library demonstrating UI/UX patterns
+- No backend, auth, or data persistence (yet)
+
+### Target State (Full MVP)
+
+**Full-Stack SaaS Application** - Complete CRM platform with:
+
+- User authentication and multi-tenancy
+- Postgres database with Supabase
+- Real-time updates and data persistence
+- Rich client-side interactions
+- Freemium monetization model
+
+### Migration Path
+
+**Phase 1 (Current):** Landing page → Establish brand and collect early interest
+**Phase 2 (MVP Development):** Add backend, auth, and core CRM features
+**Phase 3 (Post-MVP):** Integrations (IG DMs, LinkedIn), automation, analytics
+
+---
+
+## Tech Stack
+
+### Current Stack (Landing Page)
+
+**Frontend:**
+
+- **React 19.2.0** - UI library
+- **TypeScript 5.8.2** - Type-safe JavaScript
+- **Vite 6.2.0** - Build tool and dev server
+- **Tailwind CSS** (CDN) - Utility-first styling
+- **Lucide React** - Icon library
+- **Recharts** - Chart components for mockups
+
+**Status:** Static site, no backend
+
+---
+
+### MVP Tech Stack (Target Architecture)
+
+**Frontend:**
+
+- **Next.js 14+** (App Router) - React framework with SSR/SSG
+- **TypeScript 5.8+** - Strict mode enabled
+- **Tailwind CSS** (PostCSS) - Production-ready styling
+- **ShadCN UI** - Notion-like component library
+- **Lucide React** - Icon system
+- **Framer Motion** (optional) - Smooth transitions and animations
+- **React Query / Tanstack Query** - Server state management
+- **Zustand** - Client state management
+
+**Backend:**
+
+- **Supabase** - Backend-as-a-Service
+  - **Postgres Database** - Relational data storage
+  - **Supabase Auth** - Authentication with Google OAuth
+  - **Row Level Security (RLS)** - Database-level authorization
+  - **Realtime** - Live updates for collaborative features
+  - **Storage** - File uploads (attachments, docs)
+- **Prisma** (optional) - Type-safe ORM for Postgres
+
+**Authentication:**
+
+- **Supabase Auth** - Primary auth provider
+- **Clerk** (alternative) - If more auth features needed
+- **OAuth Providers:** Google (required), Email/Password
+
+**State Management:**
+
+- **Zustand** - Global UI state (modals, filters, views)
+- **React Query** - Server state, caching, mutations
+- **React Hook Form + Zod** - Form handling and validation
+
+**Deployment:**
+
+- **Vercel** - Next.js hosting (frontend)
+- **Supabase Cloud** - Managed backend
+
+**Development Tools:**
+
+- **ESLint + Prettier** - Code quality and formatting
+- **Husky + lint-staged** - Pre-commit hooks
+- **Jest + React Testing Library** - Unit and integration tests
+- **Playwright** (optional) - E2E testing
+
+---
+
+## MVP Features (Must-Haves for Phase 1)
+
+### A. Contacts & Leads
+
+- Add/edit/delete contacts
+- Simple tagging system
+- Status stages: New → Contacted → In Discussion → Closed
+- Notes per contact
+- Activity timeline (manual entries)
+
+### B. Deals / Collaborations Pipeline
+
+- Kanban board with drag-and-drop stages
+- Deal cards with: brand, offer amount, deliverables, due dates
+- Attach links or documents
+- Reminders and follow-up tasks
+
+### C. Tasks
+
+- Create/edit/delete tasks with due dates
+- Link tasks to contacts or deals
+- Daily task view on dashboard
+- Unscheduled tasks section
+
+### D. Content Calendar
+
+- Weekly calendar view
+- Content cards with title, description, status
+- Status flow: Idea → Drafting → Posted
+- Link content to brand deals
+- Track sponsored content
+
+### E. Notes (Notion-like)
+
+- Minimal rich-text editor
+- Create/edit/delete notes
+- Tags for categorization
+- Searchable and organizable
+- Templates for pitch decks, scripts
+
+### F. Dashboard
+
+- Today's tasks overview
+- Leads needing follow-up
+- Active deals in pipeline
+- Content due this week
+- Simple revenue sum from closed deals
+
+### G. Settings
+
+- User profile management
+- Light / Dark mode toggle
+- Basic notification preferences
+
+---
+
+## Build System
+
+### Current (Vite - Landing Page)
+
+**File:** `vite.config.ts`
+
+```typescript
+- Server: Port 3000, Host 0.0.0.0
+- Plugins: React with Fast Refresh
+- Path Alias: '@/' points to root
+- Environment: Loads from .env files
+```
+
+**Scripts:**
+
+```bash
+npm run dev      # Development server (port 3000)
+npm run build    # Production build
+npm run preview  # Preview production
+```
+
+### Target (Next.js - MVP)
+
+**Configuration:** `next.config.js` or `next.config.ts`
+
+```typescript
+- App Router architecture
+- TypeScript strict mode
+- Tailwind CSS with PostCSS
+- Environment variables via NEXT_PUBLIC_ prefix
+- API routes for backend logic
+```
+
+**Scripts:**
+
+```bash
+npm run dev      # Next.js dev server (port 3000)
+npm run build    # Production build
+npm run start    # Start production server
+npm run lint     # ESLint checks
+npm run test     # Run test suite
+```
+
+---
+
+## Entry Points
+
+### Application Flow
+
+```
+index.html (root HTML shell)
+    ↓
+index.tsx (React bootstrap)
+    ↓
+App.tsx (main component orchestrator)
+    ↓
+components/* (page sections)
+```
+
+### File Details
+
+1. **index.html**
+
+   - HTML shell with Tailwind CDN
+   - Custom font loading (Inter + Playfair Display)
+   - Tailwind config in `<script>` tag
+   - Loads `/index.tsx` as module entry point
+
+2. **index.tsx**
+
+   - Creates React root with StrictMode
+   - Mounts to `#root` element
+   - Error handling for missing root element
+
+3. **App.tsx**
+   - Main layout orchestrator
+   - Imports and arranges all page sections
+   - Structure: Header → Main sections → Footer
+
+---
+
+## Configuration Files
+
+### TypeScript (`tsconfig.json`)
+
+```typescript
+- Target: ES2022
+- Module: ESNext with bundler resolution
+- JSX: react-jsx (automatic runtime)
+- Experimental decorators: enabled
+- Path mapping: @/* → ./*
+- Strict mode: implicit (no emit, isolated modules)
+```
+
+### Package Management (`package.json`)
+
+```json
+- Name: copy-of-creator-osx
+- Type: module (ES modules)
+- Private: true
+- No external styling dependencies (uses CDN)
+```
+
+### Version Control (`.gitignore`)
+
+Ignores:
+
+- `node_modules/`
+- `dist/` and `dist-ssr/`
+- `*.local` files
+- `.env*` files (environment variables)
+- Editor files (.vscode, .idea, .DS_Store)
+- Log files
+
+### Environment Variables
+
+**Expected file:** `.env.local` (not committed)
+
+```bash
+GEMINI_API_KEY=your_api_key_here
+```
+
+**Note:** This API key is configured in `vite.config.ts` but not actively used in the current codebase. It's a remnant from the AI Studio origin.
+
+---
+
+## Project Metadata
+
+**File:** `metadata.json`
+
+```json
+{
+  "name": "Copy of Creator OSX",
+  "description": "A personal brand CRM & operating system for creators.",
+  "requestFramePermissions": []
+}
+```
+
+This file appears to be for AI Studio integration and may not be needed for the Vite setup.
+
+---
+
+## Important Notes
+
+### Current Limitations (Landing Page Phase)
+
+1. **No Backend** - Pure frontend, no API calls or data persistence
+2. **Hardcoded Data** - All content is static
+3. **CDN Styling** - Tailwind via CDN (will migrate to PostCSS)
+4. **No State Management** - Local useState only
+5. **No Data Fetching** - No server communication
+6. **No Testing** - No test suite yet
+7. **No Linting** - No ESLint or Prettier
+
+### MVP Development Roadmap
+
+**Phase 1: Foundation (Current → Week 1)**
+
+- Migrate from Vite to Next.js 14 App Router
+- Set up Supabase project and local development
+- Implement Supabase Auth with Google OAuth
+- Create database schema (Prisma + Supabase)
+- Set up ESLint, Prettier, and Husky
+
+**Phase 2: Core Features (Weeks 2-4)**
+
+- Contacts & Leads CRUD with RLS
+- Deals Pipeline with Kanban board
+- Tasks system with linking
+- Dashboard with aggregated views
+- Notes with rich text editor
+
+**Phase 3: Content & Polish (Weeks 5-6)**
+
+- Content Calendar with weekly view
+- Dark mode implementation
+- Settings and profile management
+- Onboarding flow
+- Revenue tracking and analytics
+
+**Phase 4: Launch Prep (Week 7)**
+
+- Testing suite (Jest + Playwright)
+- Performance optimization
+- SEO and meta tags
+- Error handling and monitoring
+- Deploy to Vercel
+
+### Monetization Strategy
+
+**Free Tier:**
+
+- Up to 30 contacts
+- 1 brand pipeline
+- 20 tasks maximum
+- No reminders
+- Limited content calendar
+
+**Pro Plan ($12-15/month):**
+
+- Unlimited contacts and deals
+- Full content calendar
+- Notes with templates
+- Reminders + follow-up automation
+- Revenue dashboard analytics
+- Dark mode
+- Priority support
+
+**Lifetime Deal ($49-89 one-time):**
+
+- All Pro features forever
+- Early adopter exclusive
+- Perfect for indie hacker launches
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+**Current (Landing Page):**
+
+- Node.js 18+ (LTS recommended)
+- npm or yarn
+- Git
+
+**MVP (Full Stack):**
+
+- Node.js 18+
+- npm or pnpm (recommended for Next.js)
+- Supabase account (free tier)
+- Vercel account (for deployment)
+
+---
+
+### Current Setup (Landing Page)
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+# → http://localhost:3000
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+---
+
+### MVP Setup (When Migrating)
+
+**1. Create Supabase Project:**
+
+```bash
+# Visit https://supabase.com
+# Create new project
+# Save your credentials:
+# - Project URL
+# - Anon Public Key
+# - Service Role Key (keep secret)
+```
+
+**2. Environment Variables:**
+
+Create `.env.local`:
+
+```bash
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=your_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_key
+
+# App Config
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NODE_ENV=development
+
+# Optional: Analytics, monitoring
+NEXT_PUBLIC_GA_ID=
+```
+
+**3. Initialize Next.js Project:**
+
+```bash
+# Option A: Fresh start
+npx create-next-app@latest creator-osx-mvp --typescript --tailwind --app --use-pnpm
+
+# Option B: Migrate existing
+# (See migration guide in codebase-structure.mdc)
+```
+
+**4. Install MVP Dependencies:**
+
+```bash
+pnpm add @supabase/supabase-js @supabase/auth-helpers-nextjs
+pnpm add @tanstack/react-query zustand
+pnpm add react-hook-form zod @hookform/resolvers
+pnpm add @radix-ui/react-* # ShadCN dependencies
+pnpm add lucide-react recharts
+pnpm add framer-motion # optional
+
+# Dev dependencies
+pnpm add -D prisma @prisma/client
+pnpm add -D eslint prettier
+pnpm add -D @types/node @types/react
+```
+
+**5. Database Setup:**
+
+```bash
+# Initialize Prisma
+npx prisma init
+
+# Create schema (see api-integration.mdc)
+# Run migrations
+npx prisma migrate dev --name init
+
+# Generate Prisma Client
+npx prisma generate
+```
+
+**6. Start Development:**
+
+```bash
+pnpm dev
+# → http://localhost:3000
+
+# Run in separate terminals:
+pnpm run db:studio  # Prisma Studio (optional)
+pnpm run lint       # Check code
+pnpm run test       # Run tests
+```
+
+---
+
+### Development Workflow
+
+**Daily Development:**
+
+1. Pull latest changes: `git pull`
+2. Install new dependencies: `pnpm install`
+3. Run migrations: `npx prisma migrate dev`
+4. Start dev server: `pnpm dev`
+5. Open Supabase Studio for database inspection
+
+**Making Changes:**
+
+1. Create feature branch: `git checkout -b feat/feature-name`
+2. Make changes with hot reload
+3. Test manually in browser
+4. Run linter: `pnpm run lint`
+5. Run tests: `pnpm run test`
+6. Commit with conventional commits
+7. Push and create PR
+
+**Database Changes:**
+
+1. Update `prisma/schema.prisma`
+2. Create migration: `npx prisma migrate dev --name description`
+3. Update Supabase RLS policies in dashboard
+4. Test with different user roles
+
+---
+
+## Key Design Decisions
+
+### Why Next.js over Vite?
+
+- **SSR/SSG Support** - Better for SEO and performance
+- **API Routes** - Built-in backend without separate server
+- **File-based Routing** - Scales better than React Router
+- **Image Optimization** - Next/Image for automatic optimization
+- **Production Ready** - Better developer experience for SaaS
+
+### Why Supabase over Custom Backend?
+
+- **Speed** - Get auth, database, storage in minutes
+- **RLS** - Database-level security built-in
+- **Realtime** - WebSocket support out of the box
+- **Cost** - Free tier is generous for MVP
+- **Migration Path** - Can self-host later if needed
+
+### Why ShadCN UI over Material/Ant Design?
+
+- **Notion-like Aesthetic** - Matches our design vision
+- **Customizable** - Copy/paste components, full control
+- **Accessible** - Built on Radix UI primitives
+- **No Bundle Bloat** - Only includes what you use
+- **Tailwind Native** - Consistent styling approach
+
+### Why Zustand + React Query over Redux?
+
+- **Simpler API** - Less boilerplate than Redux
+- **Better DX** - Easier to learn and maintain
+- **Separate Concerns** - Server state (RQ) vs UI state (Zustand)
+- **Performance** - Minimal re-renders
+- **TypeScript** - Excellent type inference
+
+---
+
+## User Journey (End-to-End)
+
+### A. Onboarding
+
+1. User signs up via Google OAuth
+2. Quick onboarding modal: platform choice, goals
+3. Lands in clean workspace with checklist
+
+### B. First Action → Add Lead
+
+1. Clicks "+ Add Lead"
+2. Enters name, brand, contact channel, note
+3. Lead appears in Contacts under "New"
+4. Opens detail panel with click
+
+### C. Lead to Deal Conversion
+
+1. Opens lead card
+2. Clicks "Convert to Deal"
+3. Fills offer, deliverables, deadline
+4. Automatically moves to Deal Pipeline "Negotiating"
+
+### D. Daily Workflow
+
+1. Morning: Dashboard shows tasks, leads, deals, content
+2. Completes tasks, adds notes, moves deals
+3. Dashboard becomes command center
+
+### E. Content Planning
+
+1. Opens Content Calendar
+2. Adds content idea
+3. Links to deal (if sponsored)
+4. Updates status: Idea → Draft → Posted
+
+### F. Closing a Deal
+
+1. Drags deal to "Completed"
+2. Confirms amount + notes
+3. Revenue updates on dashboard
+4. Deal archived but viewable
+
+### G. Notes Usage
+
+1. Stores pitch templates
+2. Saves negotiation notes
+3. Keeps content scripts
+4. Tags and searches
+
+---
+
+## External Resources
+
+### Current Stack
+
+- **Landing Page Demo:** [View Live](http://localhost:3000)
+- **Tailwind CDN:** https://cdn.tailwindcss.com/
+- **Lucide Icons:** https://lucide.dev/
+
+### MVP Resources
+
+- **Supabase Docs:** https://supabase.com/docs
+- **Next.js Docs:** https://nextjs.org/docs
+- **ShadCN UI:** https://ui.shadcn.com/
+- **Prisma Docs:** https://www.prisma.io/docs
+- **React Query:** https://tanstack.com/query/latest
+- **Zustand:** https://docs.pmnd.rs/zustand
+
+### Inspiration & Design
+
+- **Notion:** Minimal, clean interface
+- **Linear:** Fast, keyboard-first UX
+- **Height:** Pipeline management
+- **Airtable:** Flexible data views
+
+---
+
+## Support & Documentation
+
+- **README.md** - Quick start guide
+- **mvp_plan.md** - Complete MVP specification
+- **project-overview.mdc** - This file (architecture)
+- **codebase-structure.mdc** - File organization
+- **coding-standards.mdc** - Code patterns
+- **api-integration.mdc** - Backend integration guide
+- **security-considerations.mdc** - Security best practices
+
+---
+
+_Last Updated: November 2024_
+_Version: 2.0 (MVP Specification)_

@@ -1,0 +1,683 @@
+---
+title: CreatorOSX Security Considerations
+description: Security best practices, authentication, authorization, and data protection
+tags: [security, authentication, authorization, rls, data-protection]
+---
+
+# Security Considerations
+
+## Overview
+
+This document outlines security practices for CreatorOSX MVP, covering authentication, authorization, data protection, and common vulnerabilities.
+
+---
+
+## Authentication
+
+### Supabase Auth
+
+**Provider:** Supabase Auth with Google OAuth
+
+**Implementation:**
+
+```typescript
+// lib/hooks/use-auth.ts
+"use client";
+
+import { createClient } from "@/lib/supabase/client";
+
+export function useAuth() {
+  const supabase = createClient();
+
+  // ✅ Secure: Uses OAuth with redirect
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent",
+        },
+      },
+    });
+    return { error };
+  };
+
+  // ✅ Secure: Properly clears session
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    // Clear any local storage
+    localStorage.clear();
+    sessionStorage.clear();
+  };
+
+  return { signInWithGoogle, signOut };
+}
+```
+
+**Security Checklist:**
+
+- [x] Use HTTPS in production
+- [x] Implement CSRF protection (Supabase handles this)
+- [x] Set secure cookie options
+- [x] Use httpOnly cookies for session tokens
+- [x] Implement session expiration
+- [x] Handle token refresh automatically
+
+---
+
+### Session Management
+
+**Middleware Protection:**
+
+```typescript
+// middleware.ts
+import { createClient } from "@/lib/supabase/middleware";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+
+export async function middleware(request: NextRequest) {
+  const { supabase, response } = createClient(request);
+
+  // ✅ Refresh session if expired
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  // ✅ Protect dashboard routes
+  if (!session && request.nextUrl.pathname.startsWith("/dashboard")) {
+    const redirectUrl = new URL("/login", request.url);
+    redirectUrl.searchParams.set("redirectTo", request.nextUrl.pathname);
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  // ✅ Redirect authenticated users from auth pages
+  if (session && request.nextUrl.pathname.startsWith("/login")) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
+  return response;
+}
+
+export const config = {
+  matcher: ["/dashboard/:path*", "/login", "/signup", "/api/:path*"],
+};
+```
+
+**Session Security:**
+
+- Sessions expire after inactivity (configurable in Supabase)
+- Tokens stored in httpOnly cookies (secure by default)
+- Refresh tokens rotated on each use
+- Invalid tokens automatically cleared
+
+---
+
+## Authorization (Row Level Security)
+
+### RLS Policies
+
+**Principle:** Users can only access their own data
+
+**Contacts Table:**
+
+```sql
+-- Enable RLS
+ALTER TABLE contacts ENABLE ROW LEVEL SECURITY;
+
+-- SELECT: Users can view only their contacts
+CREATE POLICY "Users can view own contacts"
+  ON contacts FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- INSERT: Users can create contacts for themselves
+CREATE POLICY "Users can create own contacts"
+  ON contacts FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+-- UPDATE: Users can update only their contacts
+CREATE POLICY "Users can update own contacts"
+  ON contacts FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- DELETE: Users can delete only their contacts
+CREATE POLICY "Users can delete own contacts"
+  ON contacts FOR DELETE
+  USING (auth.uid() = user_id);
+```
+
+**Deals Table (with Contact relationship):**
+
+```sql
+ALTER TABLE deals ENABLE ROW LEVEL SECURITY;
+
+-- Users can only view deals they own
+CREATE POLICY "Users can view own deals"
+  ON deals FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- Users can only create deals for themselves
+-- AND linked contact must be theirs
+CREATE POLICY "Users can create own deals"
+  ON deals FOR INSERT
+  WITH CHECK (
+    auth.uid() = user_id
+    AND (
+      contact_id IS NULL
+      OR EXISTS (
+        SELECT 1 FROM contacts
+        WHERE contacts.id = deals.contact_id
+        AND contacts.user_id = auth.uid()
+      )
+    )
+  );
+
+-- Similar policies for UPDATE and DELETE
+```
+
+**Critical Rules:**
+
+1. ✅ Enable RLS on ALL tables
+2. ✅ Always check `auth.uid() = user_id`
+3. ✅ Validate foreign key relationships
+4. ✅ Test policies with different users
+5. ❌ Never use `TO public` policies without checks
+6. ❌ Never bypass RLS with service role key in client code
+
+---
+
+### API Route Authorization
+
+**Pattern:**
+
+```typescript
+// app/api/contacts/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+
+export async function GET(request: NextRequest) {
+  const supabase = createClient();
+
+  // ✅ Always verify authentication
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // ✅ RLS automatically filters by user_id
+  const { data, error } = await supabase
+    .from("contacts")
+    .select("*")
+    .eq("user_id", user.id); // Explicit check (redundant with RLS but safe)
+
+  if (error) {
+    console.error("Database error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json(data);
+}
+```
+
+**Authorization Checklist:**
+
+- [x] Verify user authentication in all API routes
+- [x] Check user owns resources being accessed
+- [x] Use RLS policies as primary authorization
+- [x] Validate foreign key ownership
+- [x] Return 401 for unauthenticated requests
+- [x] Return 403 for unauthorized access
+
+---
+
+## Input Validation
+
+### Zod Schemas
+
+**All user input MUST be validated with Zod:**
+
+```typescript
+// lib/validations.ts
+import { z } from "zod";
+
+export const contactSchema = z.object({
+  name: z
+    .string()
+    .min(2, "Name must be at least 2 characters")
+    .max(100, "Name must be less than 100 characters")
+    .trim(),
+
+  brand: z.string().max(100).trim().optional().or(z.literal("")),
+
+  status: z.enum(["NEW", "CONTACTED", "IN_DISCUSSION", "CLOSED"]),
+
+  tags: z
+    .array(z.string().max(50))
+    .max(20, "Maximum 20 tags allowed")
+    .default([]),
+
+  notes: z
+    .string()
+    .max(5000, "Notes must be less than 5000 characters")
+    .trim()
+    .optional()
+    .or(z.literal("")),
+});
+
+export type ContactInput = z.infer<typeof contactSchema>;
+
+export const dealSchema = z.object({
+  title: z.string().min(2).max(200).trim(),
+
+  brand: z.string().min(2).max(100).trim(),
+
+  amount: z
+    .number()
+    .positive("Amount must be positive")
+    .max(10000000, "Amount too large")
+    .optional()
+    .or(z.literal(null)),
+
+  status: z.enum(["NEGOTIATING", "PENDING", "ACTIVE", "COMPLETED", "LOST"]),
+
+  deliverables: z.string().max(2000).trim().optional(),
+
+  dueDate: z.string().datetime().optional().or(z.literal(null)),
+
+  contactId: z.string().uuid(),
+});
+
+export type DealInput = z.infer<typeof dealSchema>;
+```
+
+**API Route Validation:**
+
+```typescript
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+
+    // ✅ Validate all input
+    const validated = contactSchema.parse(body);
+
+    // ✅ Use validated data
+    const { data, error } = await supabase
+      .from("contacts")
+      .insert(validated)
+      .select()
+      .single();
+
+    return NextResponse.json(data, { status: 201 });
+  } catch (error) {
+    // ✅ Handle validation errors
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          error: "Validation failed",
+          details: error.errors,
+        },
+        { status: 400 }
+      );
+    }
+
+    throw error;
+  }
+}
+```
+
+**Validation Checklist:**
+
+- [x] Validate ALL user input with Zod
+- [x] Set maximum string lengths
+- [x] Trim whitespace from strings
+- [x] Validate UUIDs for IDs
+- [x] Validate enums for status fields
+- [x] Set reasonable limits on arrays
+- [x] Sanitize HTML if allowing rich text
+
+---
+
+## Data Protection
+
+### Environment Variables
+
+**Secure Configuration:**
+
+```bash
+# .env.local (NEVER commit to git)
+
+# ✅ Public variables (exposed to browser)
+NEXT_PUBLIC_SUPABASE_URL=https://project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...public_key
+
+# ✅ Private variables (server-only)
+SUPABASE_SERVICE_ROLE_KEY=eyJ...secret_key
+DATABASE_URL=postgresql://...
+
+# ✅ API keys (server-only)
+STRIPE_SECRET_KEY=sk_...
+RESEND_API_KEY=re_...
+```
+
+**.gitignore:**
+
+```gitignore
+# Environment variables
+.env
+.env.local
+.env*.local
+.env.production
+```
+
+**.env.example (commit this):**
+
+```bash
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+
+# App
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NODE_ENV=development
+```
+
+**Security Rules:**
+
+- ✅ Use `NEXT_PUBLIC_*` prefix for client-exposed variables
+- ✅ Never log sensitive environment variables
+- ✅ Rotate keys regularly
+- ✅ Use different keys for dev/staging/production
+- ❌ Never commit `.env.local` or keys to git
+- ❌ Never hardcode secrets in code
+
+---
+
+### Data Encryption
+
+**At Rest:**
+
+- Supabase encrypts all data at rest (AES-256)
+- Database backups are encrypted
+- File storage (when added) is encrypted
+
+**In Transit:**
+
+- All connections use TLS 1.2+ (HTTPS)
+- Supabase enforces SSL connections
+- No sensitive data in URLs or logs
+
+**Client-Side:**
+
+- Sensitive data never stored in localStorage
+- Session tokens in httpOnly cookies only
+- No sensitive data in Redux/Zustand stores
+
+---
+
+### SQL Injection Prevention
+
+**Supabase Client (Safe):**
+
+```typescript
+// ✅ Safe: Parameterized queries
+const { data } = await supabase
+  .from("contacts")
+  .select("*")
+  .eq("name", userInput); // Supabase escapes automatically
+
+// ✅ Safe: Using filters
+const { data } = await supabase
+  .from("contacts")
+  .select("*")
+  .ilike("name", `%${userInput}%`); // Escaped automatically
+```
+
+**Raw SQL (Avoid or use carefully):**
+
+```typescript
+// ❌ Dangerous: Raw SQL with user input
+const { data } = await supabase.rpc("custom_function", { search: userInput }); // Validate in function
+
+// ✅ Safe: Validated parameters
+const validated = z.string().max(100).parse(userInput);
+const { data } = await supabase.rpc("custom_function", { search: validated });
+```
+
+---
+
+## XSS Prevention
+
+### React Automatic Escaping
+
+React automatically escapes content:
+
+```typescript
+// ✅ Safe: React escapes by default
+const userInput = '<script>alert("xss")</script>';
+return <div>{userInput}</div>; // Renders as text, not executed
+```
+
+**Dangerous Patterns (Avoid):**
+
+```typescript
+// ❌ Dangerous: dangerouslySetInnerHTML
+<div dangerouslySetInnerHTML={{ __html: userInput }} />;
+
+// ✅ Safe: Sanitize if you must use HTML
+import DOMPurify from "isomorphic-dompurify";
+
+const sanitized = DOMPurify.sanitize(userInput);
+<div dangerouslySetInnerHTML={{ __html: sanitized }} />;
+```
+
+**Rich Text Editor (Notes feature):**
+
+```typescript
+// Use a secure editor like Tiptap or Lexical
+// Configure allowed HTML tags and attributes
+// Sanitize on save AND render
+```
+
+---
+
+## CSRF Protection
+
+**Built-in Protection:**
+
+- Supabase Auth handles CSRF tokens
+- Next.js API routes use SameSite cookies
+- No additional CSRF tokens needed for same-origin requests
+
+**External API Calls:**
+
+```typescript
+// ✅ Include CSRF token for non-Supabase APIs
+const csrfToken = await getCsrfToken();
+
+fetch("/api/external", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "X-CSRF-Token": csrfToken,
+  },
+  body: JSON.stringify(data),
+});
+```
+
+---
+
+## Rate Limiting
+
+### API Route Protection
+
+```typescript
+// lib/rate-limit.ts
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
+
+const ratelimit = new Ratelimit({
+  redis: Redis.fromEnv(),
+  limiter: Ratelimit.slidingWindow(10, "10 s"), // 10 requests per 10 seconds
+});
+
+export async function checkRateLimit(identifier: string) {
+  const { success, limit, reset, remaining } = await ratelimit.limit(
+    identifier
+  );
+
+  return {
+    success,
+    limit,
+    reset,
+    remaining,
+  };
+}
+```
+
+**Usage:**
+
+```typescript
+// app/api/contacts/route.ts
+export async function POST(request: NextRequest) {
+  const user = await getUserFromRequest(request);
+
+  // ✅ Rate limit by user ID
+  const { success } = await checkRateLimit(user.id);
+
+  if (!success) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
+  // ... continue with request
+}
+```
+
+---
+
+## Error Handling
+
+### Secure Error Messages
+
+```typescript
+try {
+  // Database operation
+} catch (error) {
+  // ✅ Log full error server-side
+  console.error("Database error:", error);
+
+  // ✅ Return generic message to client
+  return NextResponse.json(
+    { error: "An error occurred. Please try again." },
+    { status: 500 }
+  );
+
+  // ❌ Never expose internal errors
+  // return NextResponse.json({ error: error.message }); // BAD!
+}
+```
+
+**Error Types:**
+
+```typescript
+// 400 - Bad Request (validation errors)
+return NextResponse.json(
+  { error: "Invalid input", details: validationErrors },
+  { status: 400 }
+);
+
+// 401 - Unauthorized (not authenticated)
+return NextResponse.json({ error: "Please log in" }, { status: 401 });
+
+// 403 - Forbidden (authenticated but not authorized)
+return NextResponse.json(
+  { error: "You do not have permission" },
+  { status: 403 }
+);
+
+// 404 - Not Found
+return NextResponse.json({ error: "Resource not found" }, { status: 404 });
+
+// 429 - Too Many Requests
+return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+
+// 500 - Internal Server Error
+return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
+```
+
+---
+
+## Security Checklist
+
+### Pre-Launch Security Audit
+
+**Authentication & Authorization:**
+
+- [ ] All API routes check authentication
+- [ ] RLS enabled on all tables
+- [ ] RLS policies test with multiple users
+- [ ] Session management working correctly
+- [ ] Auth redirect URLs whitelisted
+
+**Input Validation:**
+
+- [ ] All endpoints validate input with Zod
+- [ ] String length limits enforced
+- [ ] SQL injection prevention verified
+- [ ] XSS prevention verified
+
+**Data Protection:**
+
+- [ ] Environment variables secured
+- [ ] No secrets in code or git
+- [ ] HTTPS enabled in production
+- [ ] Sensitive data encrypted
+
+**API Security:**
+
+- [ ] Rate limiting implemented
+- [ ] CORS configured correctly
+- [ ] Error messages don't expose internals
+- [ ] API keys rotated before launch
+
+**General:**
+
+- [ ] Dependencies up to date
+- [ ] Security headers configured
+- [ ] Monitoring and alerts set up
+- [ ] Backup and recovery plan
+
+---
+
+## Monitoring & Incident Response
+
+### Error Monitoring
+
+**Set up error tracking:**
+
+- Sentry or similar service
+- Log all authentication failures
+- Monitor rate limit hits
+- Alert on unusual activity
+
+**Incident Response Plan:**
+
+1. Detect: Monitor logs and alerts
+2. Contain: Disable affected accounts/features
+3. Investigate: Review logs and database
+4. Remediate: Fix vulnerability
+5. Communicate: Inform affected users
+6. Learn: Update security practices
+
+---
+
+_Security is an ongoing process. Review and update this document regularly._

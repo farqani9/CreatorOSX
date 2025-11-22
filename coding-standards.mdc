@@ -1,0 +1,1375 @@
+---
+title: CreatorOSX Coding Standards
+description: Code style, patterns, and development conventions
+tags: [standards, style-guide, best-practices, patterns]
+---
+
+# Coding Standards
+
+## Overview
+
+This document captures the coding standards and patterns for CreatorOSX. Currently, there are **no ESLint or Prettier configurations**, so these standards are based on observed patterns in the existing codebase and the project's user rules.
+
+---
+
+## Code Style
+
+### Formatting
+
+**Indentation:**
+
+- ✅ Use **2 spaces** (not tabs)
+- ✅ Consistent throughout JSX and TypeScript
+
+**Quotes:**
+
+- ✅ Single quotes for JSX attributes: `className='text-blue-500'`
+- ✅ Double quotes for TypeScript strings: `const name = "Creator OSX"`
+- ✅ Template literals for multi-line or interpolation: `` `Hello ${name}` ``
+
+**Semicolons:**
+
+- ✅ Use semicolons consistently
+- ✅ All statements should end with semicolons
+
+**Line Length:**
+
+- ✅ Target: ~80-100 characters
+- ✅ Break long Tailwind class strings into multiple lines when needed
+
+**Example:**
+
+```typescript
+export const Component: React.FC = () => {
+  const title = "My Title";
+
+  return (
+    <div className="flex items-center gap-4 px-6 py-4">
+      <span className="text-sm font-medium">{title}</span>
+    </div>
+  );
+};
+```
+
+---
+
+## TypeScript Standards
+
+### Strict Mode
+
+**Configuration:** TypeScript strict mode is implicitly enabled via tsconfig.json
+
+```typescript
+// ✅ Always provide explicit types
+interface ButtonProps {
+  variant?: "primary" | "secondary";
+  size?: "sm" | "md" | "lg";
+  children: React.ReactNode;
+}
+
+// ❌ Avoid 'any' type
+const data: any = fetchData(); // Bad
+
+// ✅ Use proper typing
+const data: User[] = fetchData(); // Good
+```
+
+### Type Annotations
+
+**Component Props:**
+
+```typescript
+// ✅ Use interfaces for props
+interface HeaderProps {
+  title: string;
+  isSticky?: boolean; // Optional with ?
+}
+
+export const Header: React.FC<HeaderProps> = ({ title, isSticky = true }) => {
+  // ...
+};
+```
+
+**Extending Native Types:**
+
+```typescript
+// ✅ Extend HTML element types
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: "primary" | "outline";
+}
+
+// This gives you onClick, disabled, etc. automatically
+```
+
+**State Typing:**
+
+```typescript
+// ✅ TypeScript can infer simple state
+const [isOpen, setIsOpen] = useState(false);
+
+// ✅ Explicit typing for complex state
+const [user, setUser] = useState<User | null>(null);
+```
+
+### Type Organization
+
+**Current Pattern:** Types are defined inline near usage
+
+```typescript
+// ✅ Interface above component
+interface CardProps {
+  title: string;
+}
+
+const Card: React.FC<CardProps> = ({ title }) => {
+  /* ... */
+};
+```
+
+**Future:** When types are shared across 3+ files, extract to `/types/` directory
+
+---
+
+## React Patterns
+
+### Component Declaration
+
+**Standard Pattern:**
+
+```typescript
+// ✅ Named export with React.FC
+export const ComponentName: React.FC = () => {
+  return <div>Content</div>;
+};
+
+// ✅ With props
+export const ComponentName: React.FC<Props> = ({ prop1, prop2 }) => {
+  return <div>{prop1}</div>;
+};
+```
+
+**Avoid:**
+
+```typescript
+// ❌ Default exports (harder to refactor)
+export default function ComponentName() {}
+
+// ❌ Missing type annotation
+export const ComponentName = () => {};
+```
+
+### Component Organization
+
+**File Structure:**
+
+```typescript
+// 1. Imports (React first, then libraries, then local)
+import React, { useState } from "react";
+import { Icon } from "lucide-react";
+import { Button } from "./ui/Button";
+
+// 2. Types/Interfaces
+interface ComponentProps {
+  title: string;
+}
+
+// 3. Constants/Data (if component-specific)
+const DEFAULT_TITLE = "Default";
+
+// 4. Sub-components (if tightly coupled)
+const SubComponent = () => <div />;
+
+// 5. Main component
+export const MainComponent: React.FC<ComponentProps> = ({ title }) => {
+  // Hooks first
+  const [state, setState] = useState(false);
+
+  // Helper functions
+  const handleClick = () => {};
+
+  // Early returns
+  if (!title) return null;
+
+  // Main render
+  return <div>{title}</div>;
+};
+```
+
+### Props Destructuring
+
+**Preferred:**
+
+```typescript
+// ✅ Destructure in function signature
+export const Card: React.FC<CardProps> = ({ title, description, children }) => {
+  return <div>{title}</div>;
+};
+
+// ✅ Default values in destructuring
+export const Card: React.FC<CardProps> = ({
+  title,
+  variant = "default",
+  size = "md",
+}) => {
+  return <div>{title}</div>;
+};
+```
+
+### State Management
+
+**Local State:**
+
+```typescript
+// ✅ Use useState for UI state
+const [isOpen, setIsOpen] = useState(false);
+const [activeTab, setActiveTab] = useState("home");
+
+// ✅ Descriptive names
+const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+```
+
+**State Updates:**
+
+```typescript
+// ✅ Direct updates for simple state
+setIsOpen(!isOpen);
+
+// ✅ Functional updates for state based on previous
+setCount((prev) => prev + 1);
+```
+
+**No Global State Yet:** When needed, use Zustand (per project rules)
+
+---
+
+## Styling Conventions
+
+### Tailwind CSS
+
+**Primary Approach:** Utility-first with Tailwind classes
+
+```typescript
+// ✅ Inline utility classes
+<div className="flex items-center gap-4 px-6 py-4 bg-white rounded-lg shadow-sm">
+  Content
+</div>
+
+// ✅ Responsive breakpoints
+<div className="text-base md:text-lg lg:text-xl">
+  Responsive text
+</div>
+
+// ✅ Conditional classes
+<button className={`btn ${isActive ? 'bg-blue-500' : 'bg-gray-500'}`}>
+  Click me
+</button>
+```
+
+**Avoid:**
+
+```typescript
+// ❌ Inline styles (unless absolutely necessary)
+<div style={{ padding: '16px' }}>Bad</div>
+
+// ❌ Unnecessary string templates for static classes
+<div className={`static-class`}>Unnecessary</div>
+```
+
+### Design Tokens
+
+**Color Palette:**
+
+- **Primary:** slate (50-900 scale)
+- **Accent:** blue (50-600)
+- **Status:** green (success), orange (warning), red (error)
+- **Brand:** Custom brand colors in Tailwind config
+
+**Typography:**
+
+- **Sans-serif:** Inter (default)
+- **Serif:** Playfair Display (for emphasis/italics)
+- **Scale:** text-xs to text-7xl
+
+**Spacing:**
+
+- Use Tailwind's spacing scale (4px base)
+- Common: p-4, p-6, p-8, gap-4, gap-6
+- Consistent padding: `px-4 sm:px-6 lg:px-8` for sections
+
+**Responsive Breakpoints:**
+
+```typescript
+sm:  640px  // Small devices
+md:  768px  // Medium devices
+lg:  1024px // Large devices
+xl:  1280px // Extra large
+```
+
+### Class Organization
+
+**Order Pattern:**
+
+```typescript
+// 1. Layout (flex, grid)
+// 2. Spacing (p-, m-, gap-)
+// 3. Sizing (w-, h-)
+// 4. Typography (text-, font-)
+// 5. Colors (bg-, text-, border-)
+// 6. Effects (shadow-, rounded-, transition-)
+
+<div className="flex items-center gap-4 p-6 w-full text-lg font-bold text-slate-900 bg-white rounded-lg shadow-sm">
+  Ordered classes
+</div>
+```
+
+---
+
+## Component Patterns
+
+### Single Responsibility
+
+**Rule:** Each component should do one thing well
+
+```typescript
+// ✅ Good - focused component
+export const PricingCard: React.FC<PricingProps> = ({ price, features }) => {
+  return (
+    <div className="card">
+      <h3>${price}</h3>
+      <ul>
+        {features.map((f) => (
+          <li>{f}</li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+// ❌ Bad - too many responsibilities
+export const PricingSection: React.FC = () => {
+  // Handles data fetching, formatting, rendering, analytics...
+  // Should be split into smaller components
+};
+```
+
+### Component Size
+
+**Target:** < 400 lines per file (project rule)
+
+**Action:** Refactor when approaching 300+ lines
+
+- Extract sub-components
+- Move helper functions to utils
+- Split into multiple related components
+
+### Reusability
+
+**UI Components Pattern:**
+
+```typescript
+// ✅ Variant-based design
+interface ButtonProps {
+  variant?: "primary" | "secondary" | "outline" | "ghost";
+  size?: "sm" | "md" | "lg";
+}
+
+export const Button: React.FC<ButtonProps> = ({
+  variant = "primary",
+  size = "md",
+  className = "",
+  children,
+  ...props
+}) => {
+  const baseStyles = "inline-flex items-center justify-center rounded-full";
+  const variants = {
+    primary: "bg-slate-900 text-white",
+    outline: "border border-slate-200 bg-white",
+    // ...
+  };
+
+  return (
+    <button
+      className={`${baseStyles} ${variants[variant]} ${className}`}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+};
+```
+
+### Props Spreading
+
+**Use Case:** Passing through native element props
+
+```typescript
+// ✅ Good - allows all button props
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: "primary" | "outline";
+}
+
+export const Button: React.FC<ButtonProps> = ({
+  variant = "primary",
+  className = "",
+  ...props // Captures onClick, disabled, type, etc.
+}) => {
+  return <button className={`btn ${className}`} {...props} />;
+};
+
+// Usage:
+<Button onClick={handleClick} disabled={isLoading} type="submit">
+  Submit
+</Button>;
+```
+
+---
+
+## Data Patterns
+
+### Constants
+
+**Component-specific:**
+
+```typescript
+// ✅ Define inside component file
+const MENU_ITEMS = ["Product", "Workflows", "Features", "Pricing"];
+
+export const Header: React.FC = () => {
+  return (
+    <nav>
+      {MENU_ITEMS.map((item) => (
+        <a key={item}>{item}</a>
+      ))}
+    </nav>
+  );
+};
+```
+
+**App-wide (future):**
+
+```typescript
+// Create /constants/navigation.ts when shared across components
+export const MAIN_MENU = [
+  /* ... */
+];
+```
+
+### Mock Data
+
+**Current Pattern:** Inline arrays for static content
+
+```typescript
+const testimonials = [
+  { name: "Leslie Alexander", quote: "...", role: "YouTube Creator" },
+  // ...
+];
+```
+
+**Future:** When data grows, move to separate files or fetch from API
+
+---
+
+## Error Handling
+
+### Defensive Checks
+
+**Current Pattern:**
+
+```typescript
+// ✅ Check for required elements
+const rootElement = document.getElementById("root");
+if (!rootElement) {
+  throw new Error("Could not find root element to mount to");
+}
+```
+
+### Future Patterns
+
+**When adding async operations:**
+
+```typescript
+// ✅ Try-catch for async functions
+const fetchData = async () => {
+  try {
+    const response = await fetch("/api/data");
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Failed to fetch data:", error);
+    throw error;
+  }
+};
+```
+
+**When adding forms:**
+
+```typescript
+// ✅ Use Zod for validation (per project rules)
+import { z } from "zod";
+
+const schema = z.object({
+  email: z.string().email(),
+  name: z.string().min(2),
+});
+```
+
+---
+
+## Performance Optimization
+
+### Current State
+
+**No optimization needed yet** - static content, no heavy computations
+
+### Future Patterns (when needed)
+
+**Memoization:**
+
+```typescript
+// ✅ Use React.memo for expensive components
+export const ExpensiveComponent = React.memo(({ data }) => {
+  return <div>{/* ... */}</div>;
+});
+
+// ✅ Use useMemo for expensive calculations
+const sortedData = useMemo(() => {
+  return data.sort((a, b) => a.value - b.value);
+}, [data]);
+
+// ✅ Use useCallback for event handlers passed to children
+const handleClick = useCallback(() => {
+  console.log("clicked");
+}, []);
+```
+
+**Code Splitting:**
+
+```typescript
+// ✅ Dynamic imports for large components
+const HeavyComponent = lazy(() => import("./HeavyComponent"));
+
+<Suspense fallback={<Loading />}>
+  <HeavyComponent />
+</Suspense>;
+```
+
+---
+
+## Accessibility
+
+### Current Patterns
+
+**Semantic HTML:**
+
+```typescript
+// ✅ Use semantic elements
+<header>...</header>
+<main>...</main>
+<footer>...</footer>
+<nav>...</nav>
+<section>...</section>
+```
+
+**Links vs Buttons:**
+
+```typescript
+// ✅ Links for navigation
+<a href="#features">Features</a>
+
+// ✅ Buttons for actions
+<button onClick={handleSubmit}>Submit</button>
+```
+
+### Future Improvements
+
+**Add when building interactive features:**
+
+- ARIA labels for icon-only buttons
+- Keyboard navigation support
+- Focus management for modals
+- Alt text for all images
+- Screen reader testing
+
+---
+
+## Comments & Documentation
+
+### When to Comment
+
+**Do:**
+
+```typescript
+// ✅ Explain complex logic
+// Calculate the total price including tax and discounts
+const finalPrice = calculatePrice(basePrice, taxRate, discounts);
+
+// ✅ Document non-obvious decisions
+// Using backdrop-blur instead of solid background for performance
+<div className="backdrop-blur-md">
+```
+
+**Don't:**
+
+```typescript
+// ❌ Obvious comments
+// Set isOpen to true
+setIsOpen(true);
+
+// ❌ Commented-out code (remove it)
+// const oldFunction = () => { }
+```
+
+### JSDoc (for complex functions)
+
+```typescript
+/**
+ * Calculates the discounted price based on user tier
+ * @param basePrice - The original price in cents
+ * @param userTier - The user's subscription tier
+ * @returns The discounted price in cents
+ */
+const calculateDiscount = (basePrice: number, userTier: string): number => {
+  // Implementation
+};
+```
+
+---
+
+## Testing (Future)
+
+### No Tests Currently
+
+When adding tests (per project rules: Jest + React Testing Library):
+
+**Pattern:**
+
+```typescript
+// ComponentName.test.tsx
+import { render, screen } from "@testing-library/react";
+import { ComponentName } from "./ComponentName";
+
+describe("ComponentName", () => {
+  it("renders correctly", () => {
+    render(<ComponentName title="Test" />);
+    expect(screen.getByText("Test")).toBeInTheDocument();
+  });
+});
+```
+
+---
+
+## Import/Export Standards
+
+### File Exports
+
+**Prefer Named Exports:**
+
+```typescript
+// ✅ Good
+export const Button: React.FC = () => {};
+export const Header: React.FC = () => {};
+
+// ❌ Avoid default exports for components
+export default Button;
+```
+
+**Exception:** `App.tsx` uses default export (React convention)
+
+### Import Grouping
+
+```typescript
+// Group 1: React
+import React, { useState, useEffect } from "react";
+
+// Group 2: Third-party
+import { Icon } from "lucide-react";
+import { AreaChart } from "recharts";
+
+// Group 3: Local components
+import { Button } from "./ui/Button";
+import { Header } from "./Header";
+
+// Group 4: Types (if separate)
+import type { User } from "@/types";
+
+// Group 5: Styles (if using CSS modules)
+import styles from "./Component.module.css";
+```
+
+---
+
+## Git & Version Control
+
+### Commit Messages (Project Rules Reference)
+
+**Use Conventional Commits:**
+
+```
+feat: add pricing section component
+fix: correct mobile menu toggle behavior
+docs: update README with setup instructions
+style: format Header component with prettier
+refactor: extract DashboardMockup to separate file
+test: add tests for Button component
+chore: update dependencies
+```
+
+**Avoid:**
+
+- Vague messages: "update stuff", "fix bug"
+- Multiple unrelated changes in one commit
+- Committing commented-out code
+
+---
+
+## Anti-patterns to Avoid
+
+### TypeScript
+
+```typescript
+// ❌ Using 'any'
+const data: any = fetchData();
+
+// ❌ Type assertions without reason
+const value = data as string;
+
+// ❌ Ignoring null checks
+const user = users[0]; // Could be undefined
+```
+
+### React
+
+```typescript
+// ❌ Mutating state directly
+items.push(newItem); // Bad
+setItems(items); // Won't trigger re-render
+
+// ✅ Use immutable updates
+setItems([...items, newItem]);
+
+// ❌ Missing key props in lists
+{
+  items.map((item) => <div>{item}</div>);
+}
+
+// ✅ Add unique keys
+{
+  items.map((item) => <div key={item.id}>{item}</div>);
+}
+```
+
+### Styling
+
+```typescript
+// ❌ Inline styles for static values
+<div style={{ padding: '16px' }}>Bad</div>
+
+// ✅ Use Tailwind
+<div className="p-4">Good</div>
+
+// ❌ Important everywhere
+<div className="!p-4 !m-2 !bg-white">Overused</div>
+```
+
+---
+
+## Code Review Checklist
+
+Before committing code, verify:
+
+- [ ] TypeScript types are explicit (no `any`)
+- [ ] Component names match filenames
+- [ ] Named exports used (except App.tsx)
+- [ ] Props are destructured in function signature
+- [ ] Tailwind classes used (no inline styles)
+- [ ] No console.logs in production code
+- [ ] File under 400 lines
+- [ ] No commented-out code
+- [ ] Imports are organized
+- [ ] Keys added to mapped elements
+- [ ] Accessibility basics covered
+
+---
+
+## Future Enhancements
+
+### When Project Grows
+
+**Add ESLint:**
+
+```bash
+npm install -D eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin
+npm install -D eslint-plugin-react eslint-plugin-react-hooks
+```
+
+**Add Prettier:**
+
+```bash
+npm install -D prettier eslint-config-prettier
+```
+
+**Add Husky (pre-commit hooks):**
+
+```bash
+npm install -D husky lint-staged
+```
+
+This will enforce these standards automatically.
+
+---
+
+---
+
+## Next.js & MVP Patterns (Target Architecture)
+
+### Server vs Client Components
+
+**Default:** Server Components (no 'use client')
+
+```typescript
+// ✅ Server Component (default)
+// app/contacts/page.tsx
+import { createServerClient } from "@/lib/supabase/server";
+
+export default async function ContactsPage() {
+  const supabase = createServerClient();
+  const { data: contacts } = await supabase.from("contacts").select("*");
+
+  return <ContactList contacts={contacts} />;
+}
+
+// ✅ Client Component (interactive)
+// components/contacts/contact-list.tsx
+("use client");
+
+import { Contact } from "@/types";
+import { useState } from "react";
+
+export function ContactList({ contacts }: { contacts: Contact[] }) {
+  const [filter, setFilter] = useState("");
+  // ... interactive logic
+}
+```
+
+**When to use 'use client':**
+
+- useState, useEffect, or any React hooks
+- Event handlers (onClick, onChange)
+- Browser APIs (localStorage, window)
+- Third-party libraries that use hooks
+
+**When to keep Server:**
+
+- Data fetching
+- Direct database access
+- Environment variables (not NEXT*PUBLIC*)
+- Rendering performance-critical content
+
+---
+
+### Data Fetching Patterns
+
+**Server Components (Async/Await):**
+
+```typescript
+// ✅ Fetch in Server Component
+export default async function Page() {
+  const supabase = createServerClient();
+  const { data } = await supabase.from("contacts").select("*");
+
+  return <ContactList data={data} />;
+}
+```
+
+**Client Components (React Query):**
+
+```typescript
+// ✅ Fetch in Client Component with React Query
+"use client";
+
+export function ContactList() {
+  const { data: contacts, isLoading } = useQuery({
+    queryKey: ["contacts"],
+    queryFn: async () => {
+      const res = await fetch("/api/contacts");
+      return res.json();
+    },
+  });
+
+  if (isLoading) return <Skeleton />;
+  return <div>{/* render */}</div>;
+}
+```
+
+**Custom Hooks (Recommended):**
+
+```typescript
+// lib/hooks/use-contacts.ts
+"use client";
+
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+export function useContacts() {
+  return useQuery({
+    queryKey: ["contacts"],
+    queryFn: async () => {
+      const res = await fetch("/api/contacts");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+  });
+}
+
+export function useCreateContact() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (contact: CreateContactInput) => {
+      const res = await fetch("/api/contacts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(contact),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
+    },
+  });
+}
+```
+
+---
+
+### Form Handling (React Hook Form + Zod)
+
+**Pattern:**
+
+```typescript
+// components/contacts/contact-form.tsx
+"use client";
+
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { contactSchema } from "@/lib/validations";
+import type { ContactInput } from "@/lib/validations";
+
+export function ContactForm() {
+  const form = useForm<ContactInput>({
+    resolver: zodResolver(contactSchema),
+    defaultValues: {
+      name: "",
+      brand: "",
+      status: "NEW",
+    },
+  });
+
+  const { mutate: createContact } = useCreateContact();
+
+  function onSubmit(data: ContactInput) {
+    createContact(data, {
+      onSuccess: () => {
+        form.reset();
+        toast.success("Contact created");
+      },
+    });
+  }
+
+  return (
+    <form onSubmit={form.handleSubmit(onSubmit)}>
+      <input {...form.register("name")} />
+      {form.formState.errors.name && (
+        <p className="text-sm text-destructive">
+          {form.formState.errors.name.message}
+        </p>
+      )}
+      {/* ... more fields */}
+      <Button type="submit">Create</Button>
+    </form>
+  );
+}
+```
+
+**Validation Schema:**
+
+```typescript
+// lib/validations.ts
+import { z } from "zod";
+
+export const contactSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  brand: z.string().optional(),
+  status: z.enum(["NEW", "CONTACTED", "IN_DISCUSSION", "CLOSED"]),
+  tags: z.array(z.string()).default([]),
+  notes: z.string().optional(),
+});
+
+export type ContactInput = z.infer<typeof contactSchema>;
+```
+
+---
+
+### API Route Patterns
+
+**RESTful Conventions:**
+
+```typescript
+// app/api/contacts/route.ts
+import { NextResponse } from "next/server";
+import { createServerClient } from "@/lib/supabase/server";
+import { contactSchema } from "@/lib/validations";
+
+// GET /api/contacts
+export async function GET(request: Request) {
+  try {
+    const supabase = createServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get("status");
+
+    let query = supabase.from("contacts").select("*").eq("userId", user.id);
+
+    if (status) {
+      query = query.eq("status", status);
+    }
+
+    const { data, error } = await query.order("createdAt", {
+      ascending: false,
+    });
+
+    if (error) throw error;
+
+    return NextResponse.json(data);
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// POST /api/contacts
+export async function POST(request: Request) {
+  try {
+    const supabase = createServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const validated = contactSchema.parse(body);
+
+    const { data, error } = await supabase
+      .from("contacts")
+      .insert({ ...validated, userId: user.id })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return NextResponse.json(data, { status: 201 });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: "Validation failed", details: error.errors },
+        { status: 400 }
+      );
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+```
+
+---
+
+### Supabase Client Patterns
+
+**Browser Client:**
+
+```typescript
+// lib/supabase/client.ts
+import { createBrowserClient as createClient } from "@supabase/ssr";
+
+export function createBrowserClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}
+```
+
+**Server Client (with cookies):**
+
+```typescript
+// lib/supabase/server.ts
+import { createServerClient as createClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+
+export function createServerClient() {
+  const cookieStore = cookies();
+
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+      },
+    }
+  );
+}
+```
+
+---
+
+### Zustand Store Patterns
+
+**Modal Store:**
+
+```typescript
+// store/use-modal-store.ts
+import { create } from "zustand";
+
+type ModalType = "contact" | "deal" | "task" | "note";
+
+interface ModalData {
+  contact?: Contact;
+  deal?: Deal;
+  contactId?: string;
+}
+
+interface ModalStore {
+  type: ModalType | null;
+  data: ModalData;
+  isOpen: boolean;
+  onOpen: (type: ModalType, data?: ModalData) => void;
+  onClose: () => void;
+}
+
+export const useModal = create<ModalStore>((set) => ({
+  type: null,
+  data: {},
+  isOpen: false,
+  onOpen: (type, data = {}) => set({ isOpen: true, type, data }),
+  onClose: () => set({ isOpen: false, type: null }),
+}));
+```
+
+**Usage:**
+
+```typescript
+"use client";
+
+import { useModal } from "@/store/use-modal-store";
+
+export function ContactCard({ contact }: { contact: Contact }) {
+  const modal = useModal();
+
+  return (
+    <Card onClick={() => modal.onOpen("contact", { contact })}>
+      {/* ... */}
+    </Card>
+  );
+}
+```
+
+---
+
+### ShadCN UI Component Patterns
+
+**Installation:**
+
+```bash
+npx shadcn-ui@latest add button
+npx shadcn-ui@latest add dialog
+npx shadcn-ui@latest add form
+```
+
+**Usage:**
+
+```typescript
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+export function MyComponent() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <Button onClick={() => setOpen(true)}>Open Dialog</Button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Title</DialogTitle>
+          </DialogHeader>
+          {/* content */}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+```
+
+---
+
+### Error Handling
+
+**API Routes:**
+
+```typescript
+try {
+  // operation
+} catch (error) {
+  if (error instanceof z.ZodError) {
+    return NextResponse.json(
+      { error: "Validation failed", details: error.errors },
+      { status: 400 }
+    );
+  }
+
+  if (error.code === "PGRST301") {
+    return NextResponse.json({ error: "Resource not found" }, { status: 404 });
+  }
+
+  console.error("API Error:", error);
+  return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+}
+```
+
+**React Query:**
+
+```typescript
+const { data, error, isError } = useContacts();
+
+if (isError) {
+  return <ErrorState message={error.message} />;
+}
+```
+
+---
+
+### Authentication Patterns
+
+**Middleware (protect routes):**
+
+```typescript
+// middleware.ts
+import { createServerClient } from "@/lib/supabase/middleware";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+
+export async function middleware(request: NextRequest) {
+  const { supabase, response } = createServerClient(request);
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  // Redirect to login if not authenticated
+  if (!session && request.nextUrl.pathname.startsWith("/dashboard")) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  // Redirect to dashboard if authenticated
+  if (session && request.nextUrl.pathname.startsWith("/login")) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
+  return response;
+}
+
+export const config = {
+  matcher: ["/dashboard/:path*", "/login", "/signup"],
+};
+```
+
+**Auth Hook:**
+
+```typescript
+// lib/hooks/use-auth.ts
+"use client";
+
+import { createBrowserClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+
+export function useAuth() {
+  const router = useRouter();
+  const supabase = createBrowserClient();
+
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (!error) router.push("/dashboard");
+    return { error };
+  };
+
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+    return { error };
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    router.push("/");
+  };
+
+  return { signIn, signInWithGoogle, signOut };
+}
+```
+
+---
+
+### File Naming (Next.js Conventions)
+
+**Components:** lowercase-with-hyphens
+
+```
+✅ contact-card.tsx
+✅ deal-pipeline.tsx
+✅ task-form.tsx
+```
+
+**Special Files:** exact names
+
+```
+page.tsx
+layout.tsx
+loading.tsx
+error.tsx
+not-found.tsx
+route.ts (API routes)
+```
+
+**Hooks:** use-\* prefix
+
+```
+use-contacts.ts
+use-auth.ts
+use-modal-store.ts
+```
+
+---
+
+_These MVP patterns build on existing standards. Update as new patterns emerge during development._

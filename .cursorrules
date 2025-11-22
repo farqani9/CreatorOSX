@@ -1,0 +1,274 @@
+# CreatorOSX - Cursor Rules
+
+This directory contains comprehensive rules for AI assistance on the CreatorOSX project.
+
+## 📋 Active Rules (Updated for MVP)
+
+1. **project-overview.mdc** - MVP scope, tech stack, and roadmap
+2. **codebase-structure.mdc** - Current landing page structure
+3. **codebase-structure-mvp.mdc** - Target Next.js App Router architecture
+4. **coding-standards.mdc** - Code style and React/Next.js patterns
+5. **api-integration.mdc** - Supabase backend integration guide
+6. **security-considerations.mdc** - Auth, RLS, and data protection
+7. **mvp_plan.md** - Complete MVP specification and user journey
+
+---
+
+## 🎯 Project Status
+
+### Current Phase: Landing Page
+
+- **Tech**: React 19.2.0 + Vite 6.2.0 + Tailwind CSS (CDN)
+- **Type**: Static marketing site showcasing product vision
+- **Status**: ✅ Complete and live
+
+### Next Phase: MVP Development
+
+- **Tech**: Next.js 14+ + Supabase + Prisma + ShadCN UI
+- **Type**: Full-stack SaaS CRM platform
+- **Timeline**: 7-week development plan
+- **Status**: 🚧 Planning complete, ready to build
+
+---
+
+## 📦 MVP Feature Set
+
+### Must-Have Features
+
+1. **Contacts & Leads** - Manage contacts with status tracking
+2. **Deals Pipeline** - Kanban board for brand collaborations
+3. **Tasks** - Task management linked to contacts/deals
+4. **Content Calendar** - Weekly view for sponsored content
+5. **Notes** - Notion-like rich text editor
+6. **Dashboard** - Command center with key metrics
+7. **Settings** - Profile, dark mode, notifications
+
+### Target Users
+
+- Content creators (IG, TikTok, LinkedIn, YouTube)
+- Creator-operators managing partnerships
+- Coaches and consultants
+- Solo entrepreneurs
+
+---
+
+## 🛠️ Tech Stack
+
+### Current (Landing Page)
+
+```bash
+React 19.2.0 + TypeScript 5.8.2
+Vite 6.2.0 (port 3000)
+Tailwind CSS (CDN) + Lucide React + Recharts
+```
+
+### Target (MVP)
+
+```bash
+# Frontend
+Next.js 14+ (App Router) + TypeScript
+Tailwind CSS (PostCSS) + ShadCN UI
+React Query + Zustand + React Hook Form + Zod
+
+# Backend
+Supabase (Postgres + Auth + RLS + Realtime)
+Prisma ORM
+
+# Deployment
+Vercel (frontend) + Supabase Cloud (backend)
+```
+
+---
+
+## ⌨️ Key Commands
+
+### Current (Vite)
+
+```bash
+npm install          # Install dependencies
+npm run dev          # Start dev server (localhost:3000)
+npm run build        # Build for production
+npm run preview      # Preview production build
+```
+
+### MVP (Next.js)
+
+```bash
+pnpm install         # Install dependencies
+pnpm dev             # Start Next.js dev server
+pnpm build           # Build for production
+pnpm start           # Start production server
+pnpm lint            # Run ESLint
+pnpm test            # Run test suite
+
+# Database
+npx prisma migrate dev    # Run migrations
+npx prisma studio         # Open Prisma Studio
+npx prisma generate       # Generate Prisma Client
+```
+
+---
+
+## 📁 File Organization
+
+### Current Structure (Flat Root)
+
+```
+components/          # Landing page sections
+  ui/               # Reusable UI primitives (Button)
+App.tsx             # Main layout orchestrator
+index.tsx           # React entry point
+index.html          # HTML shell
+```
+
+### Target Structure (Next.js App Router)
+
+```
+app/                # Next.js routes
+  (auth)/          # Auth routes (login, signup)
+  (dashboard)/     # Protected app routes
+  (marketing)/     # Public marketing pages
+  api/             # API route handlers
+components/         # React components
+  ui/              # ShadCN primitives
+  contacts/        # Contact feature components
+  deals/           # Deal pipeline components
+  tasks/           # Task components
+  calendar/        # Calendar components
+  notes/           # Notes components
+lib/               # Utilities & config
+  supabase/        # Supabase clients
+  hooks/           # Custom React hooks
+prisma/            # Database schema
+store/             # Zustand stores
+types/             # TypeScript types
+```
+
+---
+
+## 💻 Code Patterns
+
+### Current (React + Vite)
+
+- Functional components with `React.FC`
+- Named exports for components
+- Tailwind utility-first styling
+- One component per file
+- Co-located sub-components for tight coupling
+
+### MVP (Next.js + Server Components)
+
+- **Server Components** by default (no 'use client')
+- **Client Components** for interactivity ('use client')
+- lowercase-with-hyphens naming (Next.js convention)
+- React Query for data fetching
+- Zod for input validation
+- Supabase for all database operations
+- RLS policies for authorization
+
+---
+
+## 🔐 Security Practices
+
+### Authentication
+
+- Supabase Auth with Google OAuth
+- Session management via httpOnly cookies
+- Middleware protection for protected routes
+
+### Authorization
+
+- Row Level Security (RLS) on ALL tables
+- API routes verify user authentication
+- User-scoped data queries (`user_id = auth.uid()`)
+
+### Data Protection
+
+- Zod validation for ALL user input
+- Environment variables for secrets
+- HTTPS in production
+- No sensitive data in localStorage
+
+---
+
+## 🚀 Migration Path
+
+### Phase 1: Foundation (Week 1)
+
+- [ ] Set up Next.js project with App Router
+- [ ] Configure Supabase and Prisma
+- [ ] Implement authentication
+- [ ] Create database schema with RLS
+
+### Phase 2: Core Features (Weeks 2-4)
+
+- [ ] Contacts & Leads CRUD
+- [ ] Deals Pipeline (Kanban)
+- [ ] Tasks system
+- [ ] Dashboard
+
+### Phase 3: Content & Polish (Weeks 5-6)
+
+- [ ] Content Calendar
+- [ ] Notes editor
+- [ ] Dark mode
+- [ ] Settings
+
+### Phase 4: Launch (Week 7)
+
+- [ ] Testing suite
+- [ ] Performance optimization
+- [ ] Deploy to Vercel
+
+---
+
+## 📚 Documentation Structure
+
+```
+.cursorrules                    # This quick reference
+project-overview.mdc           # Complete project overview
+codebase-structure.mdc         # Current landing page structure
+codebase-structure-mvp.mdc     # MVP architecture guide
+coding-standards.mdc           # Code patterns & best practices
+api-integration.mdc            # Supabase integration guide
+security-considerations.mdc    # Security best practices
+mvp_plan.md                    # MVP specification
+README.md                      # Setup instructions
+```
+
+---
+
+## 💰 Monetization
+
+**Free Tier:**
+
+- 30 contacts max
+- 1 pipeline
+- 20 tasks
+- Basic features
+
+**Pro Plan ($12-15/month):**
+
+- Unlimited everything
+- Full feature set
+- Dark mode
+- Priority support
+
+**Lifetime Deal ($49-89):**
+
+- All Pro features forever
+- Early adopter exclusive
+
+---
+
+## 🎨 Design Inspiration
+
+- **Notion** - Minimal, clean interface
+- **Linear** - Fast, keyboard-first UX
+- **Height** - Pipeline management
+- **Airtable** - Flexible data views
+
+---
+
+_Last Updated: November 2024_
+_Version: 2.0 (MVP Ready)_
