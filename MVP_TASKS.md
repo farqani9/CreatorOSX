@@ -149,34 +149,41 @@
   - [x] Dashboard layout with auth protection
   - [x] Dashboard page with welcome message
 
-### 1.5 Core Infrastructure
+### 1.5 Core Infrastructure ✅ COMPLETED
 
-- [ ] **Install ShadCN UI**
+- [x] **Install ShadCN UI**
 
-  - [ ] Run `npx shadcn-ui@latest init`
-  - [ ] Configure `components.json`
-  - [ ] Install initial components: `button`, `card`, `dialog`, `input`, `label`
+  - [x] Run `npx shadcn@latest init`
+  - [x] Configure `components.json`
+  - [x] Install initial components: `button`, `card`, `dialog`, `input`, `label`, `textarea`, `select`, `checkbox`, `dropdown-menu`, `badge`, `avatar`, `separator`
 
-- [ ] **Create validation schemas**
+- [x] **Create validation schemas**
 
-  - [ ] Create `lib/validations.ts`
-  - [ ] Add `contactSchema` with Zod
-  - [ ] Add `dealSchema` with Zod
-  - [ ] Add `taskSchema` with Zod
-  - [ ] Add `contentItemSchema` with Zod
-  - [ ] Add `noteSchema` with Zod
+  - [x] Create `lib/validations.ts`
+  - [x] Add `contactSchema` with Zod
+  - [x] Add `dealSchema` with Zod
+  - [x] Add `taskSchema` with Zod
+  - [x] Add `contentItemSchema` with Zod
+  - [x] Add `noteSchema` with Zod
+  - [x] Add auth schemas (login, signup)
+  - [x] Add settings schemas
+  - [x] Add filter schemas
 
-- [ ] **Create utility functions**
+- [x] **Create utility functions**
 
-  - [ ] Create `lib/utils.ts` with `cn()` helper
-  - [ ] Add `formatDate()` helper
-  - [ ] Add `formatCurrency()` helper
-  - [ ] Create `lib/constants.ts` for app constants
+  - [x] Create `lib/utils.ts` with `cn()` helper
+  - [x] Add `formatDate()` and date utilities
+  - [x] Add `formatCurrency()` and number formatting
+  - [x] Add string utilities (truncate, capitalize, slugify, etc.)
+  - [x] Add array utilities (groupBy, sortBy, unique)
+  - [x] Add validation utilities (email, URL, UUID)
+  - [x] Add misc utilities (debounce, throttle, clipboard)
+  - [x] Create `lib/constants.ts` for app constants
 
-- [ ] **Set up Zustand stores**
-  - [ ] Create `store/use-modal-store.ts` for modal state
-  - [ ] Create `store/use-ui-store.ts` for theme, sidebar state
-  - [ ] Create `store/use-filter-store.ts` for filters
+- [x] **Set up Zustand stores**
+  - [x] Create `store/use-modal-store.ts` for modal state
+  - [x] Create `store/use-ui-store.ts` for theme, sidebar state
+  - [x] Create `store/use-filter-store.ts` for filters
 
 ---
 
